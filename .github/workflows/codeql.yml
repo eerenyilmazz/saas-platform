@@ -1,0 +1,59 @@
+name: "CodeQL"
+
+# static-analysis.md's security-scanning layer (separate from SonarCloud's code-quality layer,
+# see ci.yml) - SQL injection, hardcoded secrets, insecure deserialization and similar patterns.
+# Free on GitHub for any repo, no numeric threshold to fight (unlike SonarCloud's coverage gate),
+# so unlike that check this one is safe to require in the main branch ruleset.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Set up JDK 21
+        if: matrix.build-mode == 'manual'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build backend (compile only - CodeQL needs the compiled classes, not test runs)
+        if: matrix.build-mode == 'manual'
+        run: |
+          chmod +x gradlew
+          ./gradlew compileJava compileTestJava --console=plain
+        working-directory: apps/api
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
