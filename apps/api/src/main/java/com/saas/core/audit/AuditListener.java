@@ -59,6 +59,8 @@ public class AuditListener {
             if (Modifier.isStatic(field.getModifiers()) || field.isSynthetic()) {
                 continue;
             }
+            // Needed: this walks arbitrary @Audited entities' private fields generically, there's
+            // no per-entity getter list to fall back on.
             field.setAccessible(true);
             try {
                 values.put(field.getName(),

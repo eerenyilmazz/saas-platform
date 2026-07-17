@@ -62,8 +62,9 @@ class MembershipModelTest extends AbstractIntegrationTest {
         membershipRepository.save(
                 new Membership(tenantId, member.getId(), plan.getId(), now, now.plus(30, ChronoUnit.DAYS)));
 
-        assertThatThrownBy(() -> membershipRepository.saveAndFlush(
-                new Membership(tenantId, member.getId(), plan.getId(), now, now.plus(30, ChronoUnit.DAYS))))
+        Membership secondActive =
+                new Membership(tenantId, member.getId(), plan.getId(), now, now.plus(30, ChronoUnit.DAYS));
+        assertThatThrownBy(() -> membershipRepository.saveAndFlush(secondActive))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -108,7 +109,7 @@ class MembershipModelTest extends AbstractIntegrationTest {
             try (PreparedStatement statement = connection.prepareStatement("SELECT count(*) FROM member");
                     ResultSet resultSet = statement.executeQuery()) {
                 resultSet.next();
-                assertThat(resultSet.getLong(1)).isEqualTo(0);
+                assertThat(resultSet.getLong(1)).isZero();
             }
             connection.rollback();
         }

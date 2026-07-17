@@ -3,6 +3,7 @@ package com.saas.core.audit;
 import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,18 +27,18 @@ import jakarta.persistence.Table;
 @Component
 public class AuditWriter {
 
-    private static volatile AuditWriter instance;
+    private static final AtomicReference<AuditWriter> INSTANCE = new AtomicReference<>();
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     public AuditWriter(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        instance = this;
+        INSTANCE.set(this);
     }
 
     static void write(Object entity, String action, Map<String, Object> oldValue, Map<String, Object> newValue) {
-        AuditWriter writer = instance;
+        AuditWriter writer = INSTANCE.get();
         if (writer == null) {
             throw new IllegalStateException("AuditWriter used before Spring context initialization");
         }
@@ -65,6 +66,8 @@ public class AuditWriter {
 
     private static Object requireFieldValue(Object entity, String fieldName) throws IllegalAccessException {
         Field field = findField(entity.getClass(), fieldName);
+        // Same reasoning as AuditListener.snapshot(): generic access across any @Audited entity,
+        // no per-entity getter to call instead.
         field.setAccessible(true);
         Object value = field.get(entity);
         if (value == null) {

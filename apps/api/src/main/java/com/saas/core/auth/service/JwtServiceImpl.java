@@ -26,6 +26,8 @@ public class JwtServiceImpl implements JwtService {
 
     @Override
     public String issueAccessToken(User user) {
+        // java.util.Date, not java.time.Instant: jjwt's builder API takes Date, not the
+        // java.time types.
         var now = new Date();
         var expiresAt = new Date(now.getTime() + jwtProperties.getAccessTokenTtl().toMillis());
         return Jwts.builder()
