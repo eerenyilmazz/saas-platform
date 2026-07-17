@@ -5,14 +5,20 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+
+import com.saas.core.audit.AuditListener;
+import com.saas.core.audit.AuditSensitive;
 
 @Entity
 @Table(name = "`user`")
+@EntityListeners(AuditListener.class)
 public class User {
 
     @Id
@@ -25,6 +31,7 @@ public class User {
     @Column(nullable = false)
     private String email;
 
+    @AuditSensitive
     @Column(nullable = false)
     private String passwordHash;
 
@@ -44,6 +51,13 @@ public class User {
         this.email = email;
         this.passwordHash = passwordHash;
         this.role = role;
+    }
+
+    @PrePersist
+    void onCreate() {
+        // See Tenant.onCreate() - Hibernate's generated INSERT always lists this column, which
+        // overrides the DB-side DEFAULT now() with a literal NULL unless set here.
+        createdAt = Instant.now();
     }
 
     public UUID getId() {
@@ -68,5 +82,9 @@ public class User {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public void changeRole(Role role) {
+        this.role = role;
     }
 }
