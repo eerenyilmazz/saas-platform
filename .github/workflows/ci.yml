@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # SonarCloud wants full history (blame/new-code detection), not the default shallow clone.
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -24,6 +27,13 @@ jobs:
 
       - name: Build
         run: ./gradlew build --console=plain
+        working-directory: apps/api
+
+      - name: SonarCloud analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew sonar --console=plain
         working-directory: apps/api
 
   frontend:
