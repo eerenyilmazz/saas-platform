@@ -1,1 +1,15 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    // Lets Gradle download a matching JDK itself when the required toolchain (Java 21, see
+    // build.gradle) isn't found on the machine - covers CI runners and any dev machine without
+    // relying on a specific package manager's install layout (e.g. Homebrew's keg-only JDKs,
+    // which live outside the paths Gradle's own auto-detection scans).
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 rootProject.name = 'api'
