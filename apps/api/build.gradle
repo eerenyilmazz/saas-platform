@@ -1,5 +1,6 @@
 plugins {
 	id 'java'
+	id 'jacoco'
 	id 'org.springframework.boot' version '4.1.0'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'org.sonarqube' version '7.3.1.8318'
@@ -17,6 +18,11 @@ sonar {
 		property "sonar.projectKey", "eerenyilmazz_saas-platform"
 		property "sonar.organization", "eerenyilmazz"
 		property "sonar.host.url", "https://sonarcloud.io"
+		// Without this, SonarCloud has no coverage data at all and reports a flat 0% - not "low
+		// coverage", no data - which is what was tripping the "Coverage on New Code >= 80%" gate
+		// unconditionally. Pointing it at JaCoCo's own XML report makes that condition reflect
+		// what's actually tested, not the absence of any measurement.
+		property "sonar.coverage.jacoco.xmlReportPaths", "${buildDir}/reports/jacoco/test/jacocoTestReport.xml"
 	}
 }
 
@@ -77,4 +83,16 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	finalizedBy tasks.jacocoTestReport
+}
+
+tasks.named('jacocoTestReport') {
+	dependsOn tasks.test
+	reports {
+		xml.required = true
+	}
+}
+
+tasks.named('sonar') {
+	dependsOn tasks.jacocoTestReport
 }
