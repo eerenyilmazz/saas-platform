@@ -42,5 +42,7 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", () -> "saas_app");
         registry.add("spring.datasource.password", () -> "saas_app_local_dev_only");
+
+        registry.add("app.jwt.secret", () -> "test-only-jwt-signing-secret-not-used-outside-this-suite");
     }
 }
