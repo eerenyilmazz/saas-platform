@@ -13,8 +13,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 @Entity
 @Table(name = "tenant")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Tenant {
 
     @Id
@@ -31,10 +37,6 @@ public class Tenant {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected Tenant() {
-        // JPA
-    }
-
     public Tenant(String name) {
         this.name = name;
         this.settings = "{}";
@@ -46,21 +48,5 @@ public class Tenant {
         // explicitly in its INSERT, which overrides that default with a literal NULL unless the
         // Java side sets a value itself.
         createdAt = Instant.now();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getSettings() {
-        return settings;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
     }
 }

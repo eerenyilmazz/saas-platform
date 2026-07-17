@@ -15,6 +15,10 @@ import jakarta.persistence.Table;
 
 import com.saas.core.audit.AuditListener;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 /**
  * INV-1 (domain-invariants.md) - a member can't hold two ACTIVE memberships in the same tenant at
  * once - is enforced by idx_membership_one_active_per_member (a partial unique index), not here:
@@ -24,6 +28,8 @@ import com.saas.core.audit.AuditListener;
 @Entity
 @Table(name = "membership")
 @EntityListeners(AuditListener.class)
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Membership {
 
     @Id
@@ -52,10 +58,6 @@ public class Membership {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected Membership() {
-        // JPA
-    }
-
     public Membership(UUID tenantId, UUID memberId, UUID planId, Instant startAt, Instant endAt) {
         this.tenantId = tenantId;
         this.memberId = memberId;
@@ -68,38 +70,6 @@ public class Membership {
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
-    }
-
-    public UUID getMemberId() {
-        return memberId;
-    }
-
-    public UUID getPlanId() {
-        return planId;
-    }
-
-    public Instant getStartAt() {
-        return startAt;
-    }
-
-    public Instant getEndAt() {
-        return endAt;
-    }
-
-    public MembershipStatus getStatus() {
-        return status;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
     }
 
     public void freeze() {

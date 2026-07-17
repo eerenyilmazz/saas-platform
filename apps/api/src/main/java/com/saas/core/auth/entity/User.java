@@ -16,9 +16,15 @@ import jakarta.persistence.Table;
 import com.saas.core.audit.AuditListener;
 import com.saas.core.audit.AuditSensitive;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 @Entity
 @Table(name = "`user`")
 @EntityListeners(AuditListener.class)
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
 
     @Id
@@ -42,10 +48,6 @@ public class User {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected User() {
-        // JPA
-    }
-
     public User(UUID tenantId, String email, String passwordHash, Role role) {
         this.tenantId = tenantId;
         this.email = email;
@@ -55,33 +57,7 @@ public class User {
 
     @PrePersist
     void onCreate() {
-        // See Tenant.onCreate() - Hibernate's generated INSERT always lists this column, which
-        // overrides the DB-side DEFAULT now() with a literal NULL unless set here.
         createdAt = Instant.now();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public String getPasswordHash() {
-        return passwordHash;
-    }
-
-    public Role getRole() {
-        return role;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
     }
 
     public void changeRole(Role role) {

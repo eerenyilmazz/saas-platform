@@ -8,15 +8,9 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Profile;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import com.saas.core.auth.entity.Role;
-import com.saas.core.auth.entity.User;
-import com.saas.core.auth.repository.UserRepository;
-import com.saas.core.tenant.TenantContext;
-import com.saas.core.tenant.entity.Tenant;
-import com.saas.core.tenant.repository.TenantRepository;
+import lombok.RequiredArgsConstructor;
 
 /**
  * onboarding.md's MVP flow: manual onboarding, no self-service signup, no platform admin panel
@@ -26,34 +20,23 @@ import com.saas.core.tenant.repository.TenantRepository;
  * ./gradlew bootRun --args="--spring.profiles.active=local,seed --tenant.name='Acme Gym' --admin.email=owner@acme.com"
  * </pre>
  *
- * Only active under the "seed" profile, so it never runs during normal startup or in tests.
+ * Only active under the "seed" profile, so it never runs during normal startup or in tests. Just
+ * CLI argument parsing and output - the actual onboarding is TenantOnboardingService's job.
  * --admin.password is optional - a random one is generated and printed once if omitted, which is
  * safer than typing a real password on the command line (visible in shell history/process list)
  * for credentials that get relayed to the tenant_admin by email anyway per onboarding.md step 3.
  */
 @Component
 @Profile("seed")
+@RequiredArgsConstructor
 public class SeedTenantRunner implements ApplicationRunner {
 
     private static final String PASSWORD_CHARACTERS =
             "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
     private static final int GENERATED_PASSWORD_LENGTH = 16;
 
-    private final TenantRepository tenantRepository;
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final TenantOnboardingService tenantOnboardingService;
     private final ConfigurableApplicationContext applicationContext;
-
-    public SeedTenantRunner(
-            TenantRepository tenantRepository,
-            UserRepository userRepository,
-            PasswordEncoder passwordEncoder,
-            ConfigurableApplicationContext applicationContext) {
-        this.tenantRepository = tenantRepository;
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.applicationContext = applicationContext;
-    }
 
     @Override
     public void run(ApplicationArguments args) {
@@ -63,7 +46,7 @@ public class SeedTenantRunner implements ApplicationRunner {
                 ? args.getOptionValues("admin.password").get(0)
                 : generatePassword();
 
-        SeedResult result = seed(tenantName, adminEmail, adminPassword);
+        var result = tenantOnboardingService.onboardTenant(tenantName, adminEmail, adminPassword);
 
         System.out.println("=================================================");
         System.out.println("Tenant created:  " + result.tenant().getId() + " (" + tenantName + ")");
@@ -72,22 +55,6 @@ public class SeedTenantRunner implements ApplicationRunner {
         System.out.println("=================================================");
 
         System.exit(SpringApplication.exit(applicationContext, () -> 0));
-    }
-
-    /**
-     * Split out from run() so tests can seed a tenant+admin without going through
-     * ApplicationArguments or triggering run()'s System.exit.
-     */
-    SeedResult seed(String tenantName, String adminEmail, String adminPassword) {
-        TenantContext.setPlatformContext(true);
-        try {
-            Tenant tenant = tenantRepository.save(new Tenant(tenantName));
-            User admin = userRepository.save(
-                    new User(tenant.getId(), adminEmail, passwordEncoder.encode(adminPassword), Role.TENANT_ADMIN));
-            return new SeedResult(tenant, admin);
-        } finally {
-            TenantContext.setPlatformContext(false);
-        }
     }
 
     private static String requireOption(ApplicationArguments args, String name) {
@@ -106,8 +73,5 @@ public class SeedTenantRunner implements ApplicationRunner {
             password.append(PASSWORD_CHARACTERS.charAt(random.nextInt(PASSWORD_CHARACTERS.length())));
         }
         return password.toString();
-    }
-
-    record SeedResult(Tenant tenant, User admin) {
     }
 }
