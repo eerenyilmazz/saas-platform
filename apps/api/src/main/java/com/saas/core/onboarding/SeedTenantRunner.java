@@ -34,6 +34,7 @@ public class SeedTenantRunner implements ApplicationRunner {
     private static final String PASSWORD_CHARACTERS =
             "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
     private static final int GENERATED_PASSWORD_LENGTH = 16;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final TenantOnboardingService tenantOnboardingService;
     private final ConfigurableApplicationContext applicationContext;
@@ -48,6 +49,9 @@ public class SeedTenantRunner implements ApplicationRunner {
 
         var result = tenantOnboardingService.onboardTenant(tenantName, adminEmail, adminPassword);
 
+        // System.out, not a logger, deliberately: a logger's output commonly ends up shipped to
+        // centralized, long-retained log storage - printing a freshly generated password there
+        // is worse than the terminal-only, non-persisted output this operator-run tool produces.
         System.out.println("=================================================");
         System.out.println("Tenant created:  " + result.tenant().getId() + " (" + tenantName + ")");
         System.out.println("Admin email:     " + result.admin().getEmail());
@@ -67,10 +71,9 @@ public class SeedTenantRunner implements ApplicationRunner {
     }
 
     private static String generatePassword() {
-        SecureRandom random = new SecureRandom();
         StringBuilder password = new StringBuilder(GENERATED_PASSWORD_LENGTH);
         for (int i = 0; i < GENERATED_PASSWORD_LENGTH; i++) {
-            password.append(PASSWORD_CHARACTERS.charAt(random.nextInt(PASSWORD_CHARACTERS.length())));
+            password.append(PASSWORD_CHARACTERS.charAt(RANDOM.nextInt(PASSWORD_CHARACTERS.length())));
         }
         return password.toString();
     }

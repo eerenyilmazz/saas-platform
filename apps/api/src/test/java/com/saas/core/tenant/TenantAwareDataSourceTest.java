@@ -88,7 +88,7 @@ class TenantAwareDataSourceTest extends AbstractIntegrationTest {
             try (PreparedStatement statement = connection.prepareStatement("SELECT count(*) FROM tenant");
                     ResultSet resultSet = statement.executeQuery()) {
                 resultSet.next();
-                assertThat(resultSet.getLong(1)).isEqualTo(0);
+                assertThat(resultSet.getLong(1)).isZero();
             }
             connection.rollback();
         }

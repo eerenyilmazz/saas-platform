@@ -36,6 +36,11 @@ public class SecurityConfig {
             RestAuthenticationEntryPoint authenticationEntryPoint,
             RestAccessDeniedHandler accessDeniedHandler) throws Exception {
         http
+                // Safe here: CSRF protection matters for cookie/session-based auth, where the
+                // browser attaches credentials automatically to any request, including a forged
+                // one. This API is stateless (SessionCreationPolicy.STATELESS below) and
+                // authenticates via a Bearer JWT the client must attach explicitly - there's no
+                // ambient credential a forged cross-site request could ride on.
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
