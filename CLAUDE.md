@@ -29,4 +29,4 @@ Self-narrating "now I'm the reviewer" inside one long conversation is weaker tha
 
 ## Git
 
-Never run `git commit` or `git push` (including `--force`/`--force-with-lease`) yourself, under any circumstances — the user always runs these. Give the exact commands for the user to run instead, as established in this project's workflow. This applies even when the user has approved a commit/push earlier in the session; each one is theirs to run.
+Never run **any** git command yourself — not `commit`, not `push`, not `checkout -b`/`branch`, not `merge`, nothing. The user runs every git operation, including branch creation. Always give the exact command(s) for the user to run instead, and wait for them to paste back the result. This applies even mid-task and even when a similar operation was approved earlier in the session — nothing generalizes forward. `git status`/`git log`/other read-only inspection is fine if genuinely needed for diagnosis, but default to asking the user to run and paste it rather than running it yourself.

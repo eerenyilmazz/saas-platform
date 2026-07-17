@@ -15,13 +15,15 @@ Uygulama katmanındaki filtrelemeye **ek olarak** (onun yerine değil), PostgreS
 
 ```sql
 ALTER TABLE member ENABLE ROW LEVEL SECURITY;
+ALTER TABLE member FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation ON member
-    USING (tenant_id = current_setting('app.current_tenant_id')::uuid);
+    USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 ```
 
-- Backend, her istek başında (auth interceptor'da, JWT'den `tenant_id` çıkarıldıktan hemen sonra) veritabanı bağlantısına `SET app.current_tenant_id = '<tenant_id>'` komutunu çalıştırır.
+- Backend, her istek başında (auth interceptor'da, JWT'den `tenant_id` çıkarıldıktan hemen sonra) veritabanı bağlantısına `SET LOCAL app.current_tenant_id = '<tenant_id>'` komutunu çalıştırır.
 - Bundan sonra o bağlantı üzerinden yazılan **her** sorgu (elle yazılmış, JPA'nın ürettiği, raporlama amaçlı olsun) otomatik olarak sadece o tenant'ın satırlarını görür — `WHERE tenant_id = ...` yazmayı unutmak artık bir güvenlik açığı değil, en kötü ihtimalle gereksiz bir satırdır.
+- **Uygulama, migration'ları çalıştıran rolle asla aynı rolle bağlanmaz** — bkz. Faz 1 uygulama notu aşağıda. Bu ayrım olmadan yukarıdaki iki satır (`ENABLE`/`FORCE`) hiçbir işe yaramaz.
 
 ## Sonuç
 
@@ -39,3 +41,9 @@ Yok — bu, geri dönüşü kolay olmayan ama maliyeti düşük bir güvenlik ka
 - **Orijinal olay/bulgu:** Bu karar, kod hiç yazılmadan önce yapılan bir dış mimari incelemesinden çıktı — harici bir AI değerlendirmesi (Gemini), o ana kadarki tasarımın (`tenant-model.md`'deki "ortak repository filtreler" ifadesi) sadece **uygulama disiplinine** dayandığını, veritabanının kendisinin hiçbir garantisi olmadığını işaret etti. O ana kadar bu, "elbette agent'lar `tenant_id` filtresini unutmaz" varsayımıyla örtük kabul edilmişti.
 - **Reddedilen alternatifler:** Hibernate `@Filter` (sadece JPA üzerinden erişimde çalışır, ham SQL/raporlama sorgularında korumasız kalır — bu yüzden yetersiz bulundu). Sadece kod review disiplinine güvenmek (insan/agent hatasına açık, tek katmanlı savunma).
 - **Başarısızlık senaryosu:** Bir agent, bir raporlama endpoint'i ya da elle yazılmış bir `@Query` içinde `tenant_id` filtresini unutursa (özellikle çok sayıda agent'ın paralel çalıştığı bir ortamda bu istatistiksel olarak er ya da geç olur), Tenant A'nın üye listesi/randevuları Tenant B'ye sızabilirdi — bu, shared-DB modelinin göze alınan tek büyük riskiydi ve RLS olmadan **sadece zaman meselesiydi**.
+
+## Faz 1 uygulama notu — ikinci bir bulgu, kod yazılırken
+
+Bu kararın Faz 1'de gerçekten koda dökülmesi sırasında (ilk `tenant` tablosu + RLS testi), **`FORCE ROW LEVEL SECURITY` tek başına yetersiz çıktı**: PostgreSQL'de superuser rolleri RLS'i `FORCE` dahil koşulsuz atlar. Yerel/Docker kurulumunda `POSTGRES_USER` ile açılan rol (migration'ları çalıştıran rol) her zaman superuser'dır — uygulama çalışma zamanında da bu rolle bağlansaydı, yukarıdaki `ENABLE`/`FORCE`/`CREATE POLICY` satırlarının **hiçbiri hiçbir işe yaramazdı**, sessizce.
+
+**Düzeltme:** Migration'ları çalıştıran rol (superuser, `spring.flyway.*` ile ayrı yapılandırılır) ile uygulamanın çalışma zamanında bağlandığı rol (`saas_app`, `NOSUPERUSER NOBYPASSRLS`, `spring.datasource.*`) **kesin olarak ayrıldı**. Bu ayrım, [tenant-isolation-enforcement.md](../platform/tenant-isolation-enforcement.md)'ye zorunlu bir adım olarak eklendi — bir Testcontainers testi (`rlsCannotBeBypassed`) bu hatayı, kod incelemesi değil gerçek bir test çalıştırması yakaladı.
