@@ -2,11 +2,23 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.1.0'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'org.sonarqube' version '7.3.1.8318'
 }
 
 group = 'com.saas'
 version = '0.0.1-SNAPSHOT'
 description = 'Modular SaaS - api'
+
+// static-analysis.md's code-quality/complexity layer (SonarCloud). Run with ./gradlew sonar -
+// needs SONAR_TOKEN in the environment (CI: the SONAR_TOKEN repo secret; locally: your own token
+// from sonarcloud.io/account/security).
+sonar {
+	properties {
+		property "sonar.projectKey", "eerenyilmazz_saas-platform"
+		property "sonar.organization", "eerenyilmazz"
+		property "sonar.host.url", "https://sonarcloud.io"
+	}
+}
 
 java {
 	toolchain {
