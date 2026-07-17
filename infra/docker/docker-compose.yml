@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: saas_platform
+      POSTGRES_USER: saas
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-local_dev_only}
+    ports:
+      - "5433:5432"
+    volumes:
+      - saas_platform_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saas -d saas_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  saas_platform_db_data:

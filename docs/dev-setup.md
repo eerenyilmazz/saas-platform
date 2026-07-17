@@ -1,6 +1,6 @@
 # Geliştirici Kurulum Rehberi
 
-Bu rehber, repoyu klonlayan biri (insan ya da coder agent) projeyi yerel makinede nasıl ayağa kaldıracağını gösterir. [tech-stack.md](platform/tech-stack.md)'deki kararlara dayanır — Faz 0 (bkz. [roadmap/phases.md](roadmap/phases.md)) tamamlandığında buradaki komutlar gerçek proje iskeletiyle doğrulanıp güncellenmeli.
+Bu rehber, repoyu klonlayan biri (insan ya da coder agent) projeyi yerel makinede nasıl ayağa kaldıracağını gösterir. Faz 0'da gerçek proje iskeletiyle **doğrulandı** (bkz. [roadmap/phases.md](roadmap/phases.md)).
 
 ## Gereksinimler
 
@@ -8,8 +8,15 @@ Bu rehber, repoyu klonlayan biri (insan ya da coder agent) projeyi yerel makined
 |---|---|---|
 | JDK | 21 (LTS) | Spring Boot backend |
 | Node.js | 20+ | React frontend |
-| Docker + Docker Compose | güncel | Yerel PostgreSQL + servisler |
+| Docker + Docker Compose | güncel | Yerel PostgreSQL |
 | Git | güncel | — |
+
+### Java/Node sürüm çakışması varsa
+
+Bu makinede başka projeler farklı Java/Node sürümü gerektirebilir — global kurulumu bozmadan bu proje için doğru sürümü izole etmek için:
+
+- **Node:** [nvm](https://github.com/nvm-sh/nvm) kullan, repo kökündeki `.nvmrc` (`20`) otomatik doğru sürümü seçer: `nvm use`
+- **Java:** `brew install openjdk@21` (keg-only kurulur, global `java` komutuna dokunmaz) — `apps/api/gradle.properties`'deki `org.gradle.java.home` zaten doğru yolu (`/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home`) gösteriyor, ek bir PATH ayarına gerek yok, `./gradlew` otomatik doğru JDK'yı kullanır.
 
 ## İlk kurulum
 
@@ -22,19 +29,24 @@ docker compose -f infra/docker/docker-compose.yml up -d
 
 # Backend
 cd apps/api
-./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 # → Flyway migration'ları otomatik çalışır, API http://localhost:8080'de ayağa kalkar
+# → doğrulama: curl http://localhost:8080/actuator/health  →  {"status":"UP"}
 
 # Frontend (ayrı bir terminalde)
 cd apps/web
+nvm use   # .nvmrc'deki Node 20'yi seçer
 npm install
 npm run dev
 # → http://localhost:5173'te (Vite varsayılanı) ayağa kalkar
 ```
 
+> **Port notu:** Yerel PostgreSQL `5433` portunda çalışır (standart `5432` değil) — bu makinede zaten başka bir projeye ait native bir Postgres süreci `5432`'yi kullanıyordu, çakışmayı önlemek için taşındı. Kendi makinende böyle bir çakışma yoksa `infra/docker/docker-compose.yml` ve `apps/api/src/main/resources/application-local.properties`'i `5432`'ye geri alabilirsin, zorunlu değil.
+
 ## Ortam değişkenleri
 
-`apps/api/.env.local` ve `apps/web/.env.local` dosyaları (gitignore'da) — bkz. [infra/environments.md](infra/environments.md). Örnek şablon `*.env.example` dosyaları repoya eklenir, gerçek değerler asla commit edilmez.
+- `SPRING_PROFILES_ACTIVE=local` — `application-local.properties`'i aktif eder (yerel DB bağlantısı)
+- `DB_PASSWORD` — opsiyonel, verilmezse `local_dev_only` varsayılanı kullanılır (sadece local profilde, bkz. [infra/environments.md](infra/environments.md))
 
 ## Testleri çalıştırma
 
@@ -45,14 +57,14 @@ cd apps/api
 
 Detay: [workflow/testing-strategy.md](workflow/testing-strategy.md)
 
+## CI
+
+`.github/workflows/ci.yml` — her PR'da backend (`./gradlew build`) ve frontend (`npm run lint` + `npm run build`) ayrı job olarak çalışır. **Not:** GitHub Actions workflow dosyaları GitHub'ın taradığı tek yer olan `.github/workflows/` altında olmak zorunda — `infra/` altında değil (bu, [repo-structure.md](repo-structure.md)'de daha önce yanlış dokümante edilmişti, Faz 0'da düzeltildi).
+
 ## Örnek veri (seed/fixture)
 
-Boş bir veritabanıyla geliştirme yapmak zor — Faz 0'da bir `V0__seed_dev_data.sql` (sadece `local` profilinde çalışır, `staging`/`production`'da hiç uygulanmaz) eklenir: örnek bir tenant (fitness modülü açık), birkaç `member`, aktif bir `membership`. Bu, yeni bir geliştirici ya da agent'ın API'yi test etmek için önce manuel kayıt açması gerekmemesini sağlar.
+Henüz eklenmedi — Faz 1'de core (auth/tenant/membership) tabloları oluşunca, sadece `local` profilinde çalışan bir seed migration'ı eklenecek. Şu an veritabanı boş, sadece Flyway'in kendi şema geçmişi tablosu var.
 
 ## Yeni bir modül üzerinde çalışırken
 
 Kod yazmadan önce ilgili modülün spec dosyasını oku: `docs/modules/<modül_adı>.md`. Coder agent da aynı kuralı izler — bkz. [workflow/agent-pipeline.md](workflow/agent-pipeline.md).
-
-## Not
-
-Bu dosyadaki komutlar (`./gradlew`, `docker-compose.yml` yolu, port numaraları) Faz 0'da proje iskeleti gerçekten oluşturulduğunda doğrulanmalı — şu an [tech-stack.md](platform/tech-stack.md)'deki kararlara dayanan öngörülen standart komutlardır.
