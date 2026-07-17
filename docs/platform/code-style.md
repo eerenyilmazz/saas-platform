@@ -7,14 +7,74 @@
 | Katman | Sonek | Örnek |
 |---|---|---|
 | REST giriş noktası | `Controller` | `FitnessCheckinController` |
-| İş mantığı | `Service` | `MembershipService` |
+| İş mantığı (arayüz) | `Service` | `MembershipService` |
+| İş mantığı (uygulama) | `ServiceImpl` | `MembershipServiceImpl` |
 | Veri erişimi | `Repository` | `MemberRepository` |
 | Veritabanı varlığı | (sonek yok, tekil isim) | `Member`, `Membership` |
 | İstek gövdesi | `Request` | `CreateMemberRequest` |
 | Yanıt gövdesi | `Response` | `MemberResponse` |
+| Entity ↔ DTO dönüşümü | `Mapper` | `MemberMapper` |
 | Domain olayı | `Event` | `MembershipExpiringEvent` (bkz. [notifications.md](notifications.md)) |
 
 Sınıf adları [glossary.md](../glossary.md)'deki terimleri birebir kullanır — `Customer` değil `Member`, `Business` değil `Tenant`.
+
+`Request`/`Response` her zaman Java record'u olarak yazılır (immutable, alan listesi = constructor) — `LoginRequest`, `LoginResponse` gibi. `Request`'lerde alan doğrulaması Bean Validation (`@Valid`, `@NotBlank`, `@Email` vb.) ile yapılır, controller/servis içinde elle `if` kontrolü yazılmaz.
+
+## Controller — asla iş mantığı yok
+
+Bir controller sadece HTTP isteğini bağlar (deserialize/validate) ve ilgili servis metoduna devreder — key üretimi, koşul kontrolü, try/catch ile durum kaydı gibi hiçbir mantık controller'da yazılmaz. Bunun testi basit: bir controller metodu MockMvc olmadan, düz bir servis çağrısı olarak okunabilmeli (genelde tek satır `return xService.y(request);`).
+
+## Servis katmanı — interface + impl ayrımı
+
+Her iş mantığı servisi bir **arayüz** (`MembershipService`) ve onu uygulayan bir **sınıf** (`MembershipServiceImpl`, `@Service` burada) olarak yazılır. Controller (ve servisi çağıran her yer) sadece arayüze bağımlı olur — Spring hangi implementasyonu enjekte edeceğini bilir, çağıran taraf bunu bilmek zorunda değildir.
+
+- Bu ayrım her `@Component`/`@Configuration` sınıfı için değil, **iş akışı taşıyan servisler** için geçerlidir (`AuthenticationService`, `MembershipService` gibi). Altyapı sınıfları (`JwtAuthenticationFilter`, `TenantAwareDataSource`, bir `@ConfigurationProperties` sınıfı) tek bir somut sınıf olarak kalır — bunlara interface eklemek gereksiz bir katman olur.
+- İmplementasyon şişmeye başlarsa (tek bir sınıf birden fazla sorumluluk taşımaya başlarsa) ayrı, odaklı yardımcı sınıflara bölünür (bkz. [architecture-constraints.md](architecture-constraints.md)) — `ServiceImpl` her şeyi kendi içinde çözen bir "tanrı sınıf" olmaz.
+- Gerekirse repository doğrudan `ServiceImpl` içinden çağrılır, ayrı bir soyutlamaya gerek yoktur.
+
+## Lombok — constructor/getter boilerplate'i azaltır
+
+Bağımlılık enjeksiyonu yapan sınıflarda (servis impl'leri, controller'lar, config sınıfları) constructor elle yazılmaz, `@RequiredArgsConstructor` (Lombok) kullanılır; alanlar `private final` kalır. Getter'lar için `@Getter` kullanılır.
+
+```java
+@Service
+@RequiredArgsConstructor
+public class MembershipServiceImpl implements MembershipService {
+
+    private final MembershipRepository membershipRepository;
+    private final AuditWriter auditWriter;
+
+    ...
+}
+```
+
+`@RequiredArgsConstructor` sadece constructor'ın **tek işi** alanları atamaksa kullanılır. Constructor'ın ek bir işi varsa (bir statik köprü alanını doldurmak, `super(...)` çağırmak, bir doğrulama yapmak) elle yazılır — Lombok bunu üretemez, zorlamak yerine constructor elle kalır (bkz. `AuditWriter`, `TenantAwareDataSource`).
+
+- JPA entity'lerinde `@Getter` kullanılır, ama **iş anlamı taşıyan özel constructor'lar elle yazılır** (`new User(tenantId, email, passwordHash, role)` gibi) — Lombok'un `@AllArgsConstructor`/`@RequiredArgsConstructor`'ı bunları üretemez, çünkü genelde tüm alanları değil anlamlı bir alt kümesini alırlar. JPA'nın istediği boş constructor için `@NoArgsConstructor(access = AccessLevel.PROTECTED)` kullanılır.
+- Entity'lerde `@Setter` kullanılmaz — durum değişiklikleri (`freeze()`, `changeRole()` gibi) adı iş kuralını anlatan metodlarla yapılır, generic bir setter ile değil.
+
+## Config değerleri — asla kod içine gömülmez
+
+Ortam/dağıtıma göre değişebilecek ya da ayarlanabilir olması makul her değer (süre, eşik, URL, secret) bir `@ConfigurationProperties` sınıfına (`JwtProperties`, `LoginRateLimitProperties` gibi) yazılır, `application*.properties`'ten okunur — koda `static final` bir sabit olarak veya `@Value` ile dağınık şekilde gömülmez. İhtiyacı olan sınıf bu properties sınıfını enjekte eder.
+
+- Her mantıksal grup (JWT, rate limiting, ...) kendi properties sınıfını alır — tek bir dev "AppConfig" sınıfında toplamak, [decision-tree.md](decision-tree.md)'nin "erken soyutlama" uyarısına ters düşer ve gruplar arası ilgisiz alanları bir araya getirir.
+- Gerçekten sabit olan, ortamdan asla etkilenmeyen değerler (örn. bir şifre üretim algoritmasının karakter kümesi) bu kuralın dışındadır — ayrım [decision-tree.md](decision-tree.md)'deki "gerçek kolon mu, esnek alan mı" mantığına benzer: **"biri bunu tenant/ortam bazında değiştirmek ister mi?"** sorusu evetse config'e gider, hayırsa kod sabiti kalır.
+
+## Mapper — Entity ↔ DTO dönüşümü elle yazılmaz
+
+Bir controller/servis bir entity'yi doğrudan bir `Response`'a çeviriyorsa (alan alan kopyalama) bu kod bir `XMapper` arayüzüne çıkarılır, MapStruct ile üretilir — Lombok constructor/getter'ı nasıl üretiyorsa, MapStruct de bu dönüşüm kodunu aynı mantıkla (annotation processor, derleme zamanında) üretir.
+
+```java
+@Mapper(componentModel = "spring")
+public interface MemberMapper {
+    MemberResponse toResponse(Member member);
+}
+```
+
+- `componentModel = "spring"` zorunlu — bu olmadan üretilen sınıf bir Spring bean'i olmaz, `@Autowired` edilemez.
+- Mapper, ilgili modülün `mapper/` klasöründe yaşar (`com.saas.core.membership.mapper.MemberMapper` gibi) — [code-style.md](code-style.md)'nin paket içi klasörleme deseninin bir uzantısı.
+- Basit, tek yönlü (entity → response) dönüşümler için yeterlidir; `Request` → entity gibi request tarafında da ihtiyaç çıkarsa aynı arayüze `toEntity(...)` metodu eklenir, ayrı bir sınıfa çıkarılmaz.
+- MapStruct, Lombok'un ürettiği getter'ları okuyabilmek için `lombok-mapstruct-binding` bağımlılığına (build.gradle) ihtiyaç duyar — bu olmadan iki annotation processor'ın çalışma sırası garanti edilmez.
 
 ## Dil kuralı — kod her zaman İngilizce
 

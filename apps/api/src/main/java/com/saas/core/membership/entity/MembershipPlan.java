@@ -13,9 +13,15 @@ import jakarta.persistence.Table;
 
 import com.saas.core.audit.AuditListener;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 @Entity
 @Table(name = "membership_plan")
 @EntityListeners(AuditListener.class)
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class MembershipPlan {
 
     @Id
@@ -37,10 +43,6 @@ public class MembershipPlan {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected MembershipPlan() {
-        // JPA
-    }
-
     public MembershipPlan(UUID tenantId, String name, int durationDays, Integer entryAllowance) {
         this.tenantId = tenantId;
         this.name = name;
@@ -51,29 +53,5 @@ public class MembershipPlan {
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public int getDurationDays() {
-        return durationDays;
-    }
-
-    public Integer getEntryAllowance() {
-        return entryAllowance;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
     }
 }

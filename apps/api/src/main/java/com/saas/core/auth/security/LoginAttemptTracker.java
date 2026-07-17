@@ -8,6 +8,8 @@ import org.springframework.stereotype.Component;
 
 import com.saas.core.config.LoginRateLimitProperties;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * security.md's brute-force protection: after maxAttempts failed logins for the same key within
  * window, lock that key out for lockoutDuration. AuthController calls this with two independent
@@ -21,14 +23,11 @@ import com.saas.core.config.LoginRateLimitProperties;
  * to Redis is future work once either concern actually matters).
  */
 @Component
+@RequiredArgsConstructor
 public class LoginAttemptTracker {
 
     private final LoginRateLimitProperties properties;
     private final Map<String, AttemptState> states = new ConcurrentHashMap<>();
-
-    public LoginAttemptTracker(LoginRateLimitProperties properties) {
-        this.properties = properties;
-    }
 
     public boolean isLocked(String key) {
         AttemptState state = states.get(key);

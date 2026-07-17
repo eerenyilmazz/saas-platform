@@ -10,8 +10,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 @Entity
 @Table(name = "member")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Member {
 
     @Id
@@ -33,10 +39,6 @@ public class Member {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected Member() {
-        // JPA
-    }
-
     public Member(UUID tenantId, String name, String phone) {
         this.tenantId = tenantId;
         this.name = name;
@@ -46,34 +48,6 @@ public class Member {
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public Instant getConsentAt() {
-        return consentAt;
-    }
-
-    public UUID getUserId() {
-        return userId;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
     }
 
     public void recordConsent() {
