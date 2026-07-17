@@ -5,12 +5,14 @@
 -- policy in this schema would be silently inert. So the application never runs as the
 -- migration role: it connects as this separate, unprivileged role instead.
 --
--- Local/dev password only - production credential handling is tracked in
--- docs/infra/environments.md and docs/open-questions.md, not solved here.
+-- Password is a Flyway placeholder, not a literal - resolved from spring.flyway.placeholders
+-- .app_role_password (application-local.properties), which itself reads DB_APP_PASSWORD.
+-- Production credential handling is tracked in docs/infra/environments.md and
+-- docs/open-questions.md, not solved here.
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'saas_app') THEN
-        CREATE ROLE saas_app LOGIN PASSWORD 'saas_app_local_dev_only' NOSUPERUSER NOBYPASSRLS;
+        CREATE ROLE saas_app LOGIN PASSWORD '${app_role_password}' NOSUPERUSER NOBYPASSRLS;
     END IF;
 
     -- current_database() used instead of a hardcoded name: this migration runs unmodified
