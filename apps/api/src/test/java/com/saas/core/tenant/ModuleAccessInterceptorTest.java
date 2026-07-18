@@ -69,11 +69,13 @@ class ModuleAccessInterceptorTest extends AbstractIntegrationTest {
     @RequiresModule("fitness")
     private static final class GuardedController {
         public void handle() {
+            // never invoked - only reflected on to build a HandlerMethod
         }
     }
 
     private static final class UnguardedController {
         public void handle() {
+            // never invoked - only reflected on to build a HandlerMethod
         }
     }
 
