@@ -13,9 +13,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.saas.core.auth.dto.LoginResponse;
 import com.saas.testsupport.AbstractIntegrationTest;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -39,6 +43,8 @@ class AuthenticationIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     private String email;
 
     @BeforeEach
@@ -56,12 +62,88 @@ class AuthenticationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void validCredentialsReturnAnAccessToken() throws Exception {
+    void validCredentialsReturnAnAccessTokenAndARefreshToken() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType("application/json")
                         .content("{\"email\":\"" + email + "\",\"password\":\"" + RAW_PASSWORD + "\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty());
+    }
+
+    @Test
+    void refreshingWithAValidTokenRotatesBothTokens() throws Exception {
+        LoginResponse initial = login();
+
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType("application/json")
+                        .content("{\"refreshToken\":\"" + initial.refreshToken() + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andReturn();
+
+        LoginResponse rotated = objectMapper.readValue(result.getResponse().getContentAsString(), LoginResponse.class);
+        assertThat(rotated.refreshToken()).isNotEqualTo(initial.refreshToken());
+    }
+
+    @Test
+    void refreshTokenCannotBeReusedAfterRotation() throws Exception {
+        LoginResponse initial = login();
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType("application/json")
+                        .content("{\"refreshToken\":\"" + initial.refreshToken() + "\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType("application/json")
+                        .content("{\"refreshToken\":\"" + initial.refreshToken() + "\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_INVALID_REFRESH_TOKEN"));
+    }
+
+    @Test
+    void unknownRefreshTokenIsRejected() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType("application/json")
+                        .content("{\"refreshToken\":\"not-a-real-token\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_INVALID_REFRESH_TOKEN"));
+    }
+
+    @Test
+    void blankRefreshTokenFailsValidation() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType("application/json")
+                        .content("{\"refreshToken\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void logoutRevokesTheRefreshTokenSoItCannotBeUsedAgain() throws Exception {
+        LoginResponse initial = login();
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .contentType("application/json")
+                        .content("{\"refreshToken\":\"" + initial.refreshToken() + "\"}"))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType("application/json")
+                        .content("{\"refreshToken\":\"" + initial.refreshToken() + "\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_INVALID_REFRESH_TOKEN"));
+    }
+
+    private LoginResponse login() throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType("application/json")
+                        .content("{\"email\":\"" + email + "\",\"password\":\"" + RAW_PASSWORD + "\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readValue(result.getResponse().getContentAsString(), LoginResponse.class);
     }
 
     @Test
