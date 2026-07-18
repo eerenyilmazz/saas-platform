@@ -85,6 +85,7 @@ public class AuditWriter {
             try {
                 return current.getDeclaredField(fieldName);
             } catch (NoSuchFieldException ignored) {
+                // not on this class - try the superclass
             }
         }
         throw new IllegalStateException("No " + fieldName + " field found on " + type + " or its superclasses");
