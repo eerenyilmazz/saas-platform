@@ -46,4 +46,31 @@ class TenantModuleFlagTest {
 
         assertThat(tenant.isModuleEnabled("berber")).isFalse();
     }
+
+    @Test
+    void moduleConfigIsNullByDefault() {
+        Tenant tenant = new Tenant("Acme Gym");
+
+        assertThat(tenant.getModuleConfig("fitness", "qrSecretKey")).isNull();
+    }
+
+    @Test
+    void settingModuleConfigMakesItReadable() {
+        Tenant tenant = new Tenant("Acme Gym");
+
+        tenant.setModuleConfig("fitness", "qrSecretKey", "abc123");
+
+        assertThat(tenant.getModuleConfig("fitness", "qrSecretKey")).isEqualTo("abc123");
+    }
+
+    @Test
+    void moduleConfigDoesNotDisturbTheEnabledFlag() {
+        Tenant tenant = new Tenant("Acme Gym");
+        tenant.enableModule("fitness");
+
+        tenant.setModuleConfig("fitness", "qrSecretKey", "abc123");
+
+        assertThat(tenant.isModuleEnabled("fitness")).isTrue();
+        assertThat(tenant.getModuleConfig("fitness", "qrSecretKey")).isEqualTo("abc123");
+    }
 }
