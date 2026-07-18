@@ -16,6 +16,27 @@ Bu, [dependency-management.md](dependency-management.md)'deki Dependabot'tan far
 - Her PR'da otomatik çalışır (GitHub Actions'ın bir adımı olarak, bkz. [agent-pipeline.md](../workflow/agent-pipeline.md)).
 - Bulgular şiddet derecesine göre ayrılır: **kritik/yüksek** bulgu PR'ı bloklar (reviewer agent'ın [code-review-checklist.md](../workflow/code-review-checklist.md)'deki "sınır ihlali/güvenlik" kategorisiyle aynı ciddiyette ele alınır), **orta/düşük** bulgu yorum olarak bırakılır, blocklamaz.
 
+## Agent'ın SonarCloud bulgularını API ile kontrol etmesi
+
+Claude'un SonarCloud'a tarayıcıdan giriş yapma yetkisi yok — geçmişte bir PR'ın bulgularını görmek için kullanıcının ekran görüntüsü paylaşması gerekiyordu, bu hem yavaş hem de bulgu detayının (kural, satır, gerekçe) elle aktarılmasını gerektiriyordu. Bunun yerine SonarCloud'un kendi REST API'si kullanılır — login gerektirmez, sadece bir API token'ı yeterlidir.
+
+**Kurulum (bir kere, kullanıcının kendi makinesinde):**
+
+1. [sonarcloud.io/account/security](https://sonarcloud.io/account/security)'den bir **User Token** üretilir.
+2. Token, proje reposuna ya da konuşmaya **hiç yazılmadan**, kullanıcının shell profiline (`~/.zshrc`) ortam değişkeni olarak eklenir: `export SONAR_TOKEN="..."`.
+3. Bu, proje sırrı değil — token tamamen kullanıcının kendi makinesinde kalır, git'e karışmaz, CI'da kullanılmaz (CI zaten kendi `SONAR_TOKEN` repo secret'ını kullanıyor, bkz. `build.gradle`'ın `sonar` bloğu).
+
+**Kullanım:**
+
+```bash
+curl -s -u "$SONAR_TOKEN:" \
+  "https://sonarcloud.io/api/issues/search?componentKeys=eerenyilmazz_saas-platform&pullRequest=<PR_NUMARASI>&resolved=false&issueStatuses=OPEN,CONFIRMED"
+```
+
+JSON döner (`issues` dizisi) — her bulgunun kuralı, dosya/satırı, şiddeti ve mesajı programatik olarak okunur, ekran görüntüsü/elle aktarım gerekmez.
+
+**Kapsam:** Bu sadece **veri çekmeyi** otomatikleştirir — hangi bulgunun gerçek olduğu, düzeltilip düzeltilmeyeceği, "Won't Fix" mi "Open" mi kalacağı hâlâ konuşarak (agent'ın önerisi + kullanıcının onayı) karara bağlanır. Bulguları görüp otomatik commit/push yapan tam otonom bir akış (bkz. bir sonraki madde) bilinçli olarak kurulmadı — proje bu ölçekteyken (tek geliştirici, az sayıda PR) gözetimsiz otomasyonun riski, kazandırdığı hızdan daha ağır basıyor.
+
 ## Karmaşıklık eşiği (rehber, katı kural değil)
 
 - Bir metod/fonksiyonun cyclomatic complexity'si belirli bir eşiği (öneri: 10) aşarsa SonarQube uyarı verir — bu bir "asla aşılamaz" kuralı değil, "muhtemelen bölünmeli" sinyali. Reviewer (agent ya da insan) bağlama göre karar verir.
