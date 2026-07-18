@@ -82,4 +82,18 @@ public class Tenant implements SelfTenantIdentity {
         parsedSettings.setModuleEnabled(module, enabled);
         this.settings = parsedSettings.toJson();
     }
+
+    /**
+     * Generic per-module config (tenant-model.md's settings.modules.&lt;name&gt;.* shape), for
+     * values beyond the enabled flag - e.g. a module needing its own tenant-specific secret.
+     */
+    public String getModuleConfig(String module, String key) {
+        return TenantSettings.parse(settings).getModuleConfig(module, key);
+    }
+
+    public void setModuleConfig(String module, String key, String value) {
+        TenantSettings parsedSettings = TenantSettings.parse(settings);
+        parsedSettings.setModuleConfig(module, key, value);
+        this.settings = parsedSettings.toJson();
+    }
 }
