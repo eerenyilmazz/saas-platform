@@ -21,6 +21,14 @@ Bu, [dependency-management.md](dependency-management.md)'deki Dependabot'tan far
 - Bir metod/fonksiyonun cyclomatic complexity'si belirli bir eşiği (öneri: 10) aşarsa SonarQube uyarı verir — bu bir "asla aşılamaz" kuralı değil, "muhtemelen bölünmeli" sinyali. Reviewer (agent ya da insan) bağlama göre karar verir.
 - Amaç mekanik bir sayıya uymak değil, agent'ların ürettiği kodun zamanla okunabilir kalmasını sağlamak — özellikle birden fazla agent aynı codebase'e katkı yaptığında, karmaşıklık kontrolsüz büyüyebilir.
 
+## Kabul edilmiş bulguların periyodik gözden geçirilmesi
+
+CI/Quality Gate yeni koda karşı otomatik bir kapı, ama **zaten "Won't Fix"/"Safe" olarak işaretlenmiş eski bulgular** için otomatik bir tekrar kontrol yok — bunlar bir kez gerekçelendirilip kapatıldıktan sonra kimse tekrar bakmazsa, gerekçe zamanla geçersiz kalabilir (örn. CSRF'nin "stateless JWT API" gerekçesiyle kapatılması, API bir gün cookie/session tabanlı bir akış eklerse artık doğru olmaktan çıkar).
+
+- **Ayda bir**, SonarCloud'da "Won't Fix"/"Safe" durumundaki tüm bulgular tek tek gözden geçirilir: ilgili kod hâlâ aynı mı, gerekçe hâlâ geçerli mi.
+- Gerekçe geçersiz kalmışsa (kod değişmiş, varsayım artık doğru değil) bulgu yeniden "Open"a alınır ve normal PR akışıyla (kod düzeltmesi ya da yeni bir gerekçeyle tekrar kapatma) ele alınır.
+- Bu gözden geçirme ad hoc değil, [pr-and-definition-of-done.md](../workflow/pr-and-definition-of-done.md)'deki gibi tekrarlanan bir bakım görevi sayılır — kimin yapacağı (agent/insan) ekip büyüdükçe netleşir, MVP'de bunu fark eden kişi yapar.
+
 ## Kapsam dışı (MVP'de yok)
 
 - Otomatik kod kalitesi "skoru" bazlı PR reddi (örn. "coverage %80'in altına düşerse otomatik red") — [testing-strategy.md](../workflow/testing-strategy.md)'de zaten belirtildiği gibi sayısal bir coverage hedefi koymuyoruz, bu tutarlılığı korur.
