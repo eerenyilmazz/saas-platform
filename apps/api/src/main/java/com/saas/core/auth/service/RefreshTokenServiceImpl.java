@@ -15,6 +15,7 @@ import com.saas.core.auth.repository.RefreshTokenRepository;
 import com.saas.core.auth.repository.UserRepository;
 import com.saas.core.config.JwtProperties;
 import com.saas.core.exception.UnauthorizedException;
+import com.saas.core.i18n.Messages;
 import com.saas.core.tenant.TenantContext;
 
 import lombok.RequiredArgsConstructor;
@@ -23,12 +24,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class RefreshTokenServiceImpl implements RefreshTokenService {
 
-    private static final String INVALID_REFRESH_TOKEN_MESSAGE = "Oturum süresi dolmuş, lütfen tekrar giriş yapın.";
     private static final int TOKEN_BYTES = 32;
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
     private final JwtProperties jwtProperties;
+    private final Messages messages;
     private final SecureRandom secureRandom = new SecureRandom();
 
     /**
@@ -66,11 +67,11 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         try {
             var token = refreshTokenRepository.findByTokenHash(hash(refreshToken))
                     .filter(RefreshToken::isActive)
-                    .orElseThrow(() -> new UnauthorizedException("AUTH_INVALID_REFRESH_TOKEN", INVALID_REFRESH_TOKEN_MESSAGE));
+                    .orElseThrow(() -> new UnauthorizedException("AUTH_INVALID_REFRESH_TOKEN", messages.get("AUTH_INVALID_REFRESH_TOKEN")));
             token.revoke();
             refreshTokenRepository.save(token);
             return userRepository.findById(token.getUserId())
-                    .orElseThrow(() -> new UnauthorizedException("AUTH_INVALID_REFRESH_TOKEN", INVALID_REFRESH_TOKEN_MESSAGE));
+                    .orElseThrow(() -> new UnauthorizedException("AUTH_INVALID_REFRESH_TOKEN", messages.get("AUTH_INVALID_REFRESH_TOKEN")));
         } finally {
             TenantContext.setPlatformContext(false);
         }

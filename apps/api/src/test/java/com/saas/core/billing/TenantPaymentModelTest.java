@@ -54,6 +54,25 @@ class TenantPaymentModelTest extends AbstractIntegrationTest {
     }
 
     /**
+     * concurrency-and-idempotency.md: a retried request (network error, webhook redelivery)
+     * carrying the same idempotency key must not create a second row for the same tenant.
+     */
+    @Test
+    void aRepeatedIdempotencyKeyForTheSameTenantIsRejected() throws Exception {
+        UUID tenantId = insertTenant();
+        TenantContext.setTenantId(tenantId);
+
+        tenantPaymentRepository.save(new TenantPayment(tenantId, "membership", UUID.randomUUID(),
+                new BigDecimal("450.00"), PaymentMethod.CASH, Instant.now(), "retry-key-1"));
+
+        TenantPayment duplicate = new TenantPayment(tenantId, "membership", UUID.randomUUID(),
+                new BigDecimal("450.00"), PaymentMethod.CASH, Instant.now(), "retry-key-1");
+
+        assertThatThrownBy(() -> tenantPaymentRepository.saveAndFlush(duplicate))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    /**
      * The CHECK(amount > 0) constraint (V202607181600) is the only guard against a zero/negative
      * payment - there is no application-layer validation to duplicate it, so this proves the DB
      * constraint itself, not a Java-side check.

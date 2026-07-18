@@ -12,6 +12,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import com.saas.core.audit.AuditListener;
 
@@ -57,6 +58,10 @@ public class Membership {
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     public Membership(UUID tenantId, UUID memberId, UUID planId, Instant startAt, Instant endAt) {
         this.tenantId = tenantId;

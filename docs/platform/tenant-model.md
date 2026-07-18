@@ -34,7 +34,7 @@ Yeni bir modül eklendiğinde `settings.modules.<modül_adı>` altına kendi kon
 ## Veri izolasyonu kuralı
 
 - Her tablo `tenant_id` kolonu taşır.
-- Her sorgu `tenant_id` filtresiyle çalışır — bu kontrol `core`'daki ortak repository/base sınıfında merkezi olarak uygulanır, her modül bunu kendi kodunda tekrar yazmaz.
+- Her sorgu `tenant_id` ile sınırlıdır — bugün bunu tek başına RLS sağlıyor (bkz. [tenant-isolation-enforcement.md](tenant-isolation-enforcement.md)); ortak bir uygulama katmanı filtresi [ADR 0011](../adr/0011-uygulama-katmani-tenant-filtresi-ertelendi.md) gereği şu an kurulu değil.
 - Bir modül, kendi tenant_id'si dışındaki veriye asla erişemez; bu kural test suite'inde (core seviyesinde) doğrulanır.
 
 ## Feature flag kontrolü — kod seviyesinde uygulama

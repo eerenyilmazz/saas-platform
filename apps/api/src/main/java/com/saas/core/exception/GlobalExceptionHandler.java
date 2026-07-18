@@ -6,8 +6,15 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.saas.core.i18n.Messages;
+
+import lombok.RequiredArgsConstructor;
+
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final Messages messages;
 
     @ExceptionHandler(DomainException.class)
     public ResponseEntity<ErrorResponse> handleDomainException(DomainException exception) {
@@ -19,7 +26,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException exception) {
         var fieldError = exception.getBindingResult().getFieldError();
         String field = fieldError != null ? fieldError.getField() : null;
-        String message = fieldError != null ? fieldError.getDefaultMessage() : "Geçersiz istek.";
+        String message = fieldError != null ? fieldError.getDefaultMessage() : messages.get("VALIDATION_ERROR");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of("VALIDATION_ERROR", message, field));
     }
@@ -27,6 +34,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception exception) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorResponse.of("INTERNAL_ERROR", "Beklenmeyen bir hata oluştu.", null));
+                .body(ErrorResponse.of("INTERNAL_ERROR", messages.get("INTERNAL_ERROR"), null));
     }
 }

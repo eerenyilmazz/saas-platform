@@ -2,14 +2,14 @@
 
 [ADR 0008](../adr/0008-row-level-security.md) RLS kararını verdi — bu doküman bunun kod/test seviyesindeki somut karşılığı.
 
-## İki katmanlı savunma
+## Savunma katmanı — bugün tek katman
 
-| Katman | Mekanizma | Ne olursa çalışır |
+| Katman | Mekanizma | Durum |
 |---|---|---|
-| 1. Uygulama | Ortak repository/base sınıf, her sorguya `tenant_id` ekler (bkz. [tenant-model.md](tenant-model.md)) | Kod doğru yazıldıysa |
-| 2. Veritabanı | PostgreSQL RLS (bkz. [ADR 0008](../adr/0008-row-level-security.md)) | Kod yanlış yazılsa/unutulsa bile |
+| 1. Uygulama | Ortak repository/base sınıf, her sorguya `tenant_id` ekler (bkz. [tenant-model.md](tenant-model.md)) | **Ertelendi** — [ADR 0011](../adr/0011-uygulama-katmani-tenant-filtresi-ertelendi.md): mevcut transaction mimarisinde (her repository çağrısı kendi Session'ını açıyor) güvenilir şekilde kurulamıyor |
+| 2. Veritabanı | PostgreSQL RLS (bkz. [ADR 0008](../adr/0008-row-level-security.md)) | Aktif — kod yanlış yazılsa/unutulsa bile çalışır |
 
-Bir agent asla "RLS zaten var, uygulama katmanında tenant_id yazmama gerek yok" diye düşünmemeli — iki katman **birbirinin yedeği**, ikisi de her zaman uygulanır.
+Bugün tenant izolasyonunun tamamı RLS'e dayanıyor — bu kırılgan değil (aşağıdaki testler bunu kanıtlıyor), ama tek katman. Katman 1 eklenirse (ADR 0011'in yeniden değerlendirilmesiyle) bu tablo güncellenir.
 
 ## Migration'a zorunlu adım
 
