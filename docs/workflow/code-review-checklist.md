@@ -14,6 +14,7 @@
 
 - [ ] [glossary.md](../glossary.md)'deki terimler kullanılmış mı (`member` yerine `customer` gibi yeni bir isim icat edilmemiş)?
 - [ ] Sınıf/tablo isimlendirmesi [code-style.md](../platform/code-style.md)'ye uygun mu?
+- [ ] Her yorum [code-style.md](../platform/code-style.md)'nin izin verdiği 3 gerekçeden birine mi giriyor (neden, sezgiye aykırı kural, workaround)? Kodun ne yaptığını tekrar eden, çağrıyı/dosyayı özetleyen ya da başka bir yerde zaten açıklanmış bir şeyi tekrar eden yorum **kaldırılır** — bu bir "iyi olursa" değil, her PR'da bakılan bir madde.
 
 ### 3. Güvenlik
 

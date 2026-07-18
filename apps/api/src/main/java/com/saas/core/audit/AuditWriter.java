@@ -51,7 +51,7 @@ public class AuditWriter {
                     "INSERT INTO audit_log "
                             + "(tenant_id, table_name, record_id, action, old_value, new_value, actor_user_id, actor_role) "
                             + "VALUES (?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?)",
-                    requireFieldValue(entity, "tenantId"),
+                    resolveTenantId(entity),
                     tableNameOf(entity.getClass()),
                     requireFieldValue(entity, "id"),
                     action,
@@ -62,6 +62,10 @@ public class AuditWriter {
         } catch (Exception exception) {
             throw new IllegalStateException("Failed to write audit log entry for " + entity.getClass(), exception);
         }
+    }
+
+    private static Object resolveTenantId(Object entity) throws IllegalAccessException {
+        return entity instanceof SelfTenantIdentity self ? self.auditTenantId() : requireFieldValue(entity, "tenantId");
     }
 
     private static Object requireFieldValue(Object entity, String fieldName) throws IllegalAccessException {
@@ -81,7 +85,6 @@ public class AuditWriter {
             try {
                 return current.getDeclaredField(fieldName);
             } catch (NoSuchFieldException ignored) {
-                // keep walking up to the superclass
             }
         }
         throw new IllegalStateException("No " + fieldName + " field found on " + type + " or its superclasses");

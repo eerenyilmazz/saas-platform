@@ -21,10 +21,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * Tenant-billing (billing-model.md): the tenant's own customer pays the tenant, not the platform
- * - this table only records that a payment happened, it never moves money itself. source_type/
- * source_id are intentionally generic (modules/core.md) so a module without a "membership"
- * concept (e.g. an order-based vertical) can still record a payment without a core migration.
+ * source_type/source_id are intentionally generic (modules/core.md) so a module without a
+ * "membership" concept (e.g. an order-based vertical) can still record a payment without a core
+ * migration.
  */
 @Entity
 @Table(name = "tenant_payment")
