@@ -8,20 +8,30 @@ import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import com.saas.core.audit.AuditListener;
+import com.saas.core.audit.SelfTenantIdentity;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * audit-log.md scope: "tenant.settings - feature flag (modül aç/kapa) değişiklikleri". Implements
+ * SelfTenantIdentity (rather than adding a redundant tenantId field pointing at its own id) so
+ * AuditWriter can resolve which tenant_id to write to audit_log for a Tenant change.
+ */
 @Entity
 @Table(name = "tenant")
+@EntityListeners(AuditListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Tenant {
+public class Tenant implements SelfTenantIdentity {
 
     @Id
     @GeneratedValue
@@ -48,6 +58,11 @@ public class Tenant {
         // explicitly in its INSERT, which overrides that default with a literal NULL unless the
         // Java side sets a value itself.
         createdAt = Instant.now();
+    }
+
+    @Override
+    public UUID auditTenantId() {
+        return id;
     }
 
     public boolean isModuleEnabled(String module) {

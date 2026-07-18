@@ -14,9 +14,11 @@ import jakarta.persistence.PreUpdate;
 
 /**
  * Attach with @EntityListeners(AuditListener.class) on any entity audit-log.md lists as needing a
- * trail (membership, tenant_payment, user, ...) - no other per-entity code required. Fields
- * annotated @AuditSensitive are redacted in the JSON snapshot instead of omitted, so the trail
- * still shows a change happened without leaking the value.
+ * trail (membership, tenant_payment, user, ...) - no other per-entity code required. The
+ * hand-rolled reflection below is a deliberate, documented exception to
+ * architecture-constraints.md's reflection ban - see ADR 0010. Fields annotated @AuditSensitive
+ * are redacted in the JSON snapshot instead of omitted, so the trail still shows a change happened
+ * without leaking the value.
  *
  * UPDATE's old_value comes from a snapshot taken on @PostLoad, since plain JPA callbacks (unlike
  * Hibernate's own Interceptor.onFlushDirty) only ever see the entity's current state - there's no
