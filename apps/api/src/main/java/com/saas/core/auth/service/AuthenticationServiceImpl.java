@@ -12,6 +12,7 @@ import com.saas.core.auth.repository.UserRepository;
 import com.saas.core.auth.security.LoginAttemptTracker;
 import com.saas.core.exception.ForbiddenException;
 import com.saas.core.exception.UnauthorizedException;
+import com.saas.core.i18n.Messages;
 import com.saas.core.tenant.TenantContext;
 
 import lombok.RequiredArgsConstructor;
@@ -20,13 +21,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
 
-    private static final String INVALID_CREDENTIALS_MESSAGE = "E-posta veya şifre hatalı.";
+    private static final String AUTH_INVALID_CREDENTIALS = "AUTH_INVALID_CREDENTIALS";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final LoginAttemptTracker loginAttemptTracker;
+    private final Messages messages;
 
     @Override
     public LoginResponse login(LoginRequest request, String clientIp) {
@@ -36,8 +38,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         if (loginAttemptTracker.isLocked(ipKey) || loginAttemptTracker.isLocked(emailKey)) {
             // 403, not the semantically closer 429: error-handling.md's exception hierarchy is a
             // fixed set of 6 types with no rate-limit entry, and forbids adding a 7th.
-            throw new ForbiddenException("AUTH_TOO_MANY_ATTEMPTS",
-                    "Çok fazla başarısız deneme. Lütfen daha sonra tekrar deneyin.");
+            throw new ForbiddenException("AUTH_TOO_MANY_ATTEMPTS", messages.get("AUTH_TOO_MANY_ATTEMPTS"));
         }
 
         try {
@@ -65,10 +66,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private LoginResponse authenticate(LoginRequest request) {
         var user = findUserAcrossTenants(request.email())
-                .orElseThrow(() -> new UnauthorizedException("AUTH_INVALID_CREDENTIALS", INVALID_CREDENTIALS_MESSAGE));
+                .orElseThrow(() -> new UnauthorizedException(AUTH_INVALID_CREDENTIALS, messages.get(AUTH_INVALID_CREDENTIALS)));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new UnauthorizedException("AUTH_INVALID_CREDENTIALS", INVALID_CREDENTIALS_MESSAGE);
+            throw new UnauthorizedException(AUTH_INVALID_CREDENTIALS, messages.get(AUTH_INVALID_CREDENTIALS));
         }
 
         return issueTokens(user);

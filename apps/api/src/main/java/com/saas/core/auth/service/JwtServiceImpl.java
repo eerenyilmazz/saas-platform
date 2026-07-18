@@ -12,6 +12,7 @@ import com.saas.core.auth.entity.Role;
 import com.saas.core.auth.entity.User;
 import com.saas.core.config.JwtProperties;
 import com.saas.core.exception.UnauthorizedException;
+import com.saas.core.i18n.Messages;
 
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class JwtServiceImpl implements JwtService {
 
     private final JwtProperties jwtProperties;
+    private final Messages messages;
 
     @Override
     public String issueAccessToken(User user) {
@@ -53,7 +55,7 @@ public class JwtServiceImpl implements JwtService {
                     UUID.fromString(claims.get("tenant_id", String.class)),
                     Role.valueOf(claims.get("role", String.class)));
         } catch (JwtException | IllegalArgumentException exception) {
-            throw new UnauthorizedException("AUTH_INVALID_TOKEN", "Geçersiz ya da süresi dolmuş oturum.");
+            throw new UnauthorizedException("AUTH_INVALID_TOKEN", messages.get("AUTH_INVALID_TOKEN"));
         }
     }
 

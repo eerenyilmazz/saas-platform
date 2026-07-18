@@ -58,6 +58,8 @@ public class TenantPayment {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    private String idempotencyKey;
+
     public TenantPayment(UUID tenantId, String sourceType, UUID sourceId, BigDecimal amount, PaymentMethod method,
             Instant paidAt) {
         this.tenantId = tenantId;
@@ -66,6 +68,16 @@ public class TenantPayment {
         this.amount = amount;
         this.method = method;
         this.paidAt = paidAt;
+    }
+
+    /**
+     * For callers that can retry the same request (e.g. a payment provider's webhook) -
+     * idempotencyKey is optional, per concurrency-and-idempotency.md.
+     */
+    public TenantPayment(UUID tenantId, String sourceType, UUID sourceId, BigDecimal amount, PaymentMethod method,
+            Instant paidAt, String idempotencyKey) {
+        this(tenantId, sourceType, sourceId, amount, method, paidAt);
+        this.idempotencyKey = idempotencyKey;
     }
 
     @PrePersist

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import com.saas.core.membership.entity.Member;
 import com.saas.core.membership.entity.Membership;
@@ -90,6 +91,35 @@ class MembershipModelTest extends AbstractIntegrationTest {
                 new Membership(tenantId, member.getId(), plan.getId(), now, now.plus(30, ChronoUnit.DAYS)));
 
         assertThat(second.getId()).isNotEqualTo(first.getId());
+    }
+
+    /**
+     * concurrency-and-idempotency.md: two staff updating the same membership at once must not
+     * let the later write silently overwrite the earlier one. Loads the same row through two
+     * separate repository calls (two distinct managed instances, as two concurrent requests
+     * would each have their own) to prove the version check itself, not just that the column
+     * exists.
+     */
+    @Test
+    void concurrentUpdatesToTheSameMembershipConflict() throws Exception {
+        UUID tenantId = insertTenant();
+        TenantContext.setTenantId(tenantId);
+
+        Member member = memberRepository.save(new Member(tenantId, "Test Member", "5551234567"));
+        MembershipPlan plan = membershipPlanRepository.save(new MembershipPlan(tenantId, "Monthly", 30, null));
+        Instant now = Instant.now();
+        UUID membershipId = membershipRepository.save(
+                new Membership(tenantId, member.getId(), plan.getId(), now, now.plus(30, ChronoUnit.DAYS))).getId();
+
+        Membership firstCopy = membershipRepository.findById(membershipId).orElseThrow();
+        Membership staleCopy = membershipRepository.findById(membershipId).orElseThrow();
+
+        firstCopy.freeze();
+        membershipRepository.saveAndFlush(firstCopy);
+
+        staleCopy.expire();
+        assertThatThrownBy(() -> membershipRepository.saveAndFlush(staleCopy))
+                .isInstanceOf(ObjectOptimisticLockingFailureException.class);
     }
 
     /**
