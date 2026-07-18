@@ -30,6 +30,9 @@ jobs:
         working-directory: apps/api
 
       - name: SonarCloud analysis
+        # Dependabot-triggered runs don't get repo secrets (GitHub restricts this by
+        # design), so SONAR_TOKEN is empty and the sonar task would always fail here.
+        if: github.actor != 'dependabot[bot]'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
