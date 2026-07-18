@@ -43,6 +43,17 @@ final class TenantSettings {
         moduleNode.put(ENABLED_KEY, enabled);
     }
 
+    String getModuleConfig(String module, String key) {
+        JsonNode value = root.path(MODULES_KEY).path(module).path(key);
+        return value.isMissingNode() || value.isNull() ? null : value.asText();
+    }
+
+    void setModuleConfig(String module, String key, String value) {
+        ObjectNode modules = objectChild(root, MODULES_KEY);
+        ObjectNode moduleNode = objectChild(modules, module);
+        moduleNode.put(key, value);
+    }
+
     String toJson() {
         try {
             return MAPPER.writeValueAsString(root);
