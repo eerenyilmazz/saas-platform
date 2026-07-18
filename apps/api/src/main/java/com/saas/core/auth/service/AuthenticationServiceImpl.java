@@ -21,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
 
+    private static final String AUTH_INVALID_CREDENTIALS = "AUTH_INVALID_CREDENTIALS";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -64,10 +66,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private LoginResponse authenticate(LoginRequest request) {
         var user = findUserAcrossTenants(request.email())
-                .orElseThrow(() -> new UnauthorizedException("AUTH_INVALID_CREDENTIALS", messages.get("AUTH_INVALID_CREDENTIALS")));
+                .orElseThrow(() -> new UnauthorizedException(AUTH_INVALID_CREDENTIALS, messages.get(AUTH_INVALID_CREDENTIALS)));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new UnauthorizedException("AUTH_INVALID_CREDENTIALS", messages.get("AUTH_INVALID_CREDENTIALS"));
+            throw new UnauthorizedException(AUTH_INVALID_CREDENTIALS, messages.get(AUTH_INVALID_CREDENTIALS));
         }
 
         return issueTokens(user);

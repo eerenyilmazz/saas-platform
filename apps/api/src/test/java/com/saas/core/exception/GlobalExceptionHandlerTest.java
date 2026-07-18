@@ -44,5 +44,7 @@ class GlobalExceptionHandlerTest {
 
     @SuppressWarnings("unused")
     private void dummyMethod(String arg) {
+        // Never called - only its reflected Method/parameter is used above, to build a
+        // MethodParameter for a MethodArgumentNotValidException with no real controller involved.
     }
 }

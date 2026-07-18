@@ -24,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class RefreshTokenServiceImpl implements RefreshTokenService {
 
+    private static final String AUTH_INVALID_REFRESH_TOKEN = "AUTH_INVALID_REFRESH_TOKEN";
     private static final int TOKEN_BYTES = 32;
 
     private final RefreshTokenRepository refreshTokenRepository;
@@ -67,11 +68,11 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         try {
             var token = refreshTokenRepository.findByTokenHash(hash(refreshToken))
                     .filter(RefreshToken::isActive)
-                    .orElseThrow(() -> new UnauthorizedException("AUTH_INVALID_REFRESH_TOKEN", messages.get("AUTH_INVALID_REFRESH_TOKEN")));
+                    .orElseThrow(() -> new UnauthorizedException(AUTH_INVALID_REFRESH_TOKEN, messages.get(AUTH_INVALID_REFRESH_TOKEN)));
             token.revoke();
             refreshTokenRepository.save(token);
             return userRepository.findById(token.getUserId())
-                    .orElseThrow(() -> new UnauthorizedException("AUTH_INVALID_REFRESH_TOKEN", messages.get("AUTH_INVALID_REFRESH_TOKEN")));
+                    .orElseThrow(() -> new UnauthorizedException(AUTH_INVALID_REFRESH_TOKEN, messages.get(AUTH_INVALID_REFRESH_TOKEN)));
         } finally {
             TenantContext.setPlatformContext(false);
         }
