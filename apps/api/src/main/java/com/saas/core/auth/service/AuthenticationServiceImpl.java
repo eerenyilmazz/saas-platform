@@ -25,6 +25,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
     private final LoginAttemptTracker loginAttemptTracker;
 
     @Override
@@ -51,6 +52,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
     }
 
+    @Override
+    public LoginResponse refresh(String refreshToken) {
+        var user = refreshTokenService.validateAndConsume(refreshToken);
+        return issueTokens(user);
+    }
+
+    @Override
+    public void logout(String refreshToken) {
+        refreshTokenService.revoke(refreshToken);
+    }
+
     private LoginResponse authenticate(LoginRequest request) {
         var user = findUserAcrossTenants(request.email())
                 .orElseThrow(() -> new UnauthorizedException("AUTH_INVALID_CREDENTIALS", INVALID_CREDENTIALS_MESSAGE));
@@ -59,7 +71,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new UnauthorizedException("AUTH_INVALID_CREDENTIALS", INVALID_CREDENTIALS_MESSAGE);
         }
 
-        return new LoginResponse(jwtService.issueAccessToken(user));
+        return issueTokens(user);
+    }
+
+    private LoginResponse issueTokens(User user) {
+        return new LoginResponse(jwtService.issueAccessToken(user), refreshTokenService.issue(user));
     }
 
     /**
