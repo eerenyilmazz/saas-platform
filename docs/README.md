@@ -94,6 +94,7 @@ Platform sektörden bağımsız tasarlanmıştır: bugün berber + fitness, yar�
 **Roadmap**
 - [roadmap/versions.md](roadmap/versions.md) — sürüm yol haritası
 - [roadmap/phases.md](roadmap/phases.md) — adım adım başlangıç sırası (Faz 0–6)
+- [roadmap/pending-work.md](roadmap/pending-work.md) — açık bir iş kararına bağlı olduğu için bekleyen maddeler (hangi open-questions.md maddesine bağlı olduğuyla birlikte)
 
 **Kararların gerekçesi**
 - [adr/](adr/) — monorepo, Spring Boot, shared-DB+tenant_id, PostgreSQL+Flyway, Capacitor, i18n, UTC zaman damgası, Row-Level Security, Flyway zaman damgalı versiyonlama kararlarının bağlamı ve gerekçesi (ADR şablonu "geçmiş bağlam/orijinal olay/reddedilen alternatifler" alanları da taşıyor)
