@@ -137,6 +137,26 @@ class AuthenticationIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.error.code").value("AUTH_INVALID_REFRESH_TOKEN"));
     }
 
+    @Test
+    void aProtectedPathWithNoTokenIsRejected() throws Exception {
+        mockMvc.perform(post("/api/v1/does-not-matter"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_REQUIRED"));
+    }
+
+    /**
+     * JwtAuthenticationFilter throws (via JwtService) inside a servlet filter, not a controller -
+     * GlobalExceptionHandler (a @RestControllerAdvice) never sees it, so without the filter's own
+     * catch this would surface as a bare 500 instead of the standard error envelope.
+     */
+    @Test
+    void aProtectedPathWithAnInvalidTokenIsRejectedWithTheStandardErrorEnvelope() throws Exception {
+        mockMvc.perform(post("/api/v1/does-not-matter")
+                        .header("Authorization", "Bearer not-a-real-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_INVALID_TOKEN"));
+    }
+
     private LoginResponse login() throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType("application/json")
