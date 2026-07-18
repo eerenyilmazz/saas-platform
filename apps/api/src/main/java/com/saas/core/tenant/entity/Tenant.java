@@ -49,4 +49,22 @@ public class Tenant {
         // Java side sets a value itself.
         createdAt = Instant.now();
     }
+
+    public boolean isModuleEnabled(String module) {
+        return TenantSettings.parse(settings).isModuleEnabled(module);
+    }
+
+    public void enableModule(String module) {
+        setModuleEnabled(module, true);
+    }
+
+    public void disableModule(String module) {
+        setModuleEnabled(module, false);
+    }
+
+    private void setModuleEnabled(String module, boolean enabled) {
+        TenantSettings parsedSettings = TenantSettings.parse(settings);
+        parsedSettings.setModuleEnabled(module, enabled);
+        this.settings = parsedSettings.toJson();
+    }
 }
