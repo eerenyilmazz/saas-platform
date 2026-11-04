@@ -1,40 +1,40 @@
-# Audit Log — İşlem Geçmişi
+# Audit Log — Change History
 
 `com.saas.core.audit`
 
-Kim, ne zaman, hangi kaydı değiştirdi sorusuna cevap veren merkezi mekanizma. Özellikle üyelik ve ödeme kayıtlarında "bana yanlış ücret yansıtıldı" gibi bir itiraz geldiğinde, ya da bir personelin hatalı işlem yapıp yapmadığını kontrol etmek gerektiğinde bu log tek kaynak olur.
+The central mechanism that answers the question: who changed which record, and when. Especially for membership and payment records, this log is the single source when an objection like "I was charged the wrong fee" comes in, or when it is necessary to check whether a staff member made an erroneous transaction.
 
-## Kapsam
+## Scope
 
-Aşağıdaki tablolarda değişiklik (create/update/delete) otomatik loglanır:
+Changes (create/update/delete) in the following tables are logged automatically:
 
-- `membership`, `membership_plan` — üyelik kaydı/plan değişiklikleri
-- `tenant_payment` — tenant-billing kayıtları
-- `platform_subscription` — platform-billing kayıtları
-- `user` — rol değişiklikleri, hesap aktif/pasif etme
-- `tenant.settings` — feature flag (modül aç/kapa) değişiklikleri
+- `membership`, `membership_plan` — membership record/plan changes
+- `tenant_payment` — tenant-billing records
+- `platform_subscription` — platform-billing records
+- `user` — role changes, activating/deactivating accounts
+- `tenant.settings` — feature flag (module on/off) changes
 
-Diğer tablolar (örn. `checkin_log`, `appointment`) zaten kendi başına bir olay kaydı olduğu için ayrıca audit'lenmez — asıl risk "geri dönüşü olan/parayı etkileyen" kayıtlarda.
+Other tables (e.g. `checkin_log`, `appointment`) are not audited separately since they are already an event record on their own — the real risk is in records that are "irreversible/affect money".
 
-## Veri modeli
+## Data model
 
 - `audit_log` — id, tenant_id, table_name, record_id, action (`create`/`update`/`delete`), old_value (JSON), new_value (JSON), actor_user_id, actor_role, occurred_at
 
-## Teknik yaklaşım
+## Technical approach
 
-Her modülde ayrı ayrı audit kodu yazılmaz — `core`'da ortak bir mekanizma (örn. JPA entity listener / AOP interceptor) yukarıdaki tabloları izler, `audit_log`'a otomatik yazar. Yeni bir modül eklenirken audit gerektiren bir tablo varsa, o tablo bu ortak mekanizmaya kaydedilir (bkz. [workflow/new-module-checklist.md](../workflow/new-module-checklist.md)).
+Audit code is not written separately in each module — a shared mechanism in `core` (e.g. a JPA entity listener / AOP interceptor) watches the tables above and writes to `audit_log` automatically. When adding a new module, if there is a table that needs auditing, that table is registered with this shared mechanism (see [workflow/new-module-checklist.md](../workflow/new-module-checklist.md)).
 
-## Kim görebilir
+## Who can see it
 
-- `platform_owner` — tüm tenant'ların audit log'unu görebilir
-- `tenant_admin` — sadece kendi tenant'ının audit log'unu görebilir
-- `tenant_staff` — göremez
+- `platform_owner` — can see the audit log of all tenants
+- `tenant_admin` — can see only its own tenant's audit log
+- `tenant_staff` — cannot see it
 
-## Kapsam dışı (MVP'de yok)
+## Out of scope (not in the MVP)
 
-- Audit log üzerinde arama/filtreleme arayüzü — ilk sürümde sadece kayıt tutulur, inceleme gerektiğinde DB'den sorgulanır. Arayüz, platform admin paneliyle (bkz. [roadmap/phases.md](../roadmap/phases.md) Faz 6) birlikte eklenir.
+- A search/filter interface over the audit log — in the first release records are only kept, and queried from the DB when review is needed. The interface is added together with the platform admin panel (see [roadmap/phases.md](../roadmap/phases.md) Phase 6).
 
-## İlgili dosyalar
+## Related files
 
-- [tenant-model.md](tenant-model.md) — tenant izolasyonu, audit_log da tenant_id taşır
-- [support-access.md](support-access.md) — destek amaçlı erişimin de audit_log'a yazılması
+- [tenant-model.md](tenant-model.md) — tenant isolation, audit_log also carries tenant_id
+- [support-access.md](support-access.md) — support access is also written to audit_log

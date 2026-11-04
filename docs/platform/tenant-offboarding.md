@@ -1,46 +1,46 @@
-# Tenant Offboarding — Ayrılma ve Veri Dışa Aktarma
+# Tenant Offboarding — Leaving and Data Export
 
-[data-import.md](data-import.md) bir tenant'ın **nasıl içeri** gireceğini anlatıyordu — bu doküman tersini tanımlar: bir tenant abonelik iptal ettiğinde/ayrıldığında ne olur.
+[data-import.md](data-import.md) described how a tenant **comes in** — this document defines the opposite: what happens when a tenant cancels its subscription/leaves.
 
-## Neden gerekli
+## Why it is needed
 
-Bu simetrik bir boşluktu: onboarding var, offboarding yoktu. Ayrıca bir gereklilik — KVKK'nın veri taşınabilirliği hakkı, tenant'ın kendi verisini (üye listesi, geçmiş kayıtlar) alıp gidebilmesini gerektirir; sessizce silmek ya da süresiz tutmak ikisi de sorunlu.
+This was a symmetric gap: onboarding existed, offboarding did not. There is also a requirement — KVKK's right to data portability requires that the tenant be able to take its own data (member list, historical records) and go; silently deleting it or keeping it indefinitely are both problematic.
 
-## Akış
+## Flow
 
 ```
-1) Tenant/platform_owner abonelik iptalini başlatır
+1) The tenant/platform_owner initiates the subscription cancellation
         ↓
-2) Grace period (öneri: 30 gün) — bu sürede tenant hâlâ giriş yapabilir, verisini görebilir
+2) Grace period (suggestion: 30 days) — during this time the tenant can still log in and view their data
         ↓
-3) Export — tenant kendi verisini CSV olarak indirebilir (data-import.md'nin ters yönü:
-   member, membership, tenant_payment, checkin_log/appointment — kendi tenant_id'sine ait her şey)
+3) Export — the tenant can download their own data as CSV (the reverse direction of data-import.md:
+   member, membership, tenant_payment, checkin_log/appointment — everything belonging to their own tenant_id)
         ↓
-4) Grace period bitince → erişim kesilir (user hesapları deaktif edilir)
+4) When the grace period ends → access is cut (user accounts are deactivated)
         ↓
-5) Veri saklama süresi (öneri: 90 gün, yasal zorunluluklar hariç) → sonra anonimleştirme/silme
+5) Data retention period (suggestion: 90 days, except for legal obligations) → then anonymization/deletion
 ```
 
-## MVP kararı: manuel, platform_owner destekli
+## MVP decision: manual, supported by the platform_owner
 
-[onboarding.md](onboarding.md)'deki aynı mantık: self-servis bir "hesabımı kapat" akışı MVP'de yok. Tenant iptal isteğini sana iletir, sen grace period'u ve export'u [data-import.md](data-import.md)'deki import script'inin tersi bir export script'iyle manuel yürütürsün.
+The same logic as in [onboarding.md](onboarding.md): there is no self-service "close my account" flow in the MVP. The tenant passes the cancellation request to you, and you manually run the grace period and the export with an export script that is the reverse of the import script in [data-import.md](data-import.md).
 
-## Veri modeli
+## Data model
 
-- `tenant.status` alanına yeni bir değer: `cancelled` (bkz. [tenant-model.md](tenant-model.md)) — `active` değilse yeni giriş/işlem yapılamaz ama grace period boyunca veri hâlâ okunabilir.
-- Silme, [database-conventions.md](database-conventions.md)'deki soft-delete kuralına tabi — `deleted_at` set edilir, gerçek `DELETE` çalışmaz (mali kayıt zorunluluğu, bkz. [kvkk-checklist.md](kvkk-checklist.md)).
+- A new value for the `tenant.status` field: `cancelled` (see [tenant-model.md](tenant-model.md)) — if not `active`, no new logins/operations can be made, but the data can still be read during the grace period.
+- Deletion is subject to the soft-delete rule in [database-conventions.md](database-conventions.md) — `deleted_at` is set, and a real `DELETE` does not run (financial record-keeping requirement, see [kvkk-checklist.md](kvkk-checklist.md)).
 
-## Platform-billing ile ilişki
+## Relationship with platform-billing
 
-İptal, [billing-model.md](billing-model.md)'deki `platform_subscription.status`'unu `cancelled` yapar — bu senin gelirinin durması demektir, tenant'ın kendi verisiyle (tenant-billing) karıştırılmaz.
+The cancellation sets `platform_subscription.status` in [billing-model.md](billing-model.md) to `cancelled` — this means your revenue stops, and it is not mixed with the tenant's own data (tenant-billing).
 
-## Kapsam dışı (MVP'de yok)
+## Out of scope (not in the MVP)
 
-- Self-servis "hesabımı kapat" butonu — platform admin paneliyle (bkz. [roadmap/phases.md](../roadmap/phases.md) Faz 6) birlikte değerlendirilir.
-- Otomatik export formatı zenginleştirme (sadece CSV, başka format yok).
+- A self-service "close my account" button — considered together with the platform admin panel (see [roadmap/phases.md](../roadmap/phases.md) Phase 6).
+- Enriching the automatic export format (CSV only, no other format).
 
-## İlgili dosyalar
+## Related files
 
-- [data-import.md](data-import.md) — bu dosyanın simetriği
-- [kvkk-checklist.md](kvkk-checklist.md) — veri taşınabilirliği/silme hakkı
-- [billing-model.md](billing-model.md) — platform_subscription iptali
+- [data-import.md](data-import.md) — the symmetric counterpart of this file
+- [kvkk-checklist.md](kvkk-checklist.md) — data portability/deletion rights
+- [billing-model.md](billing-model.md) — cancelling platform_subscription

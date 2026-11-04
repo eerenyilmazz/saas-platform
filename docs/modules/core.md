@@ -1,47 +1,47 @@
-# Modül: core
+# Module: core
 
-**Paket:** `com.saas.core.*`
-**Bağımlılık:** yok (diğer her modül buna bağımlı)
-**Öncelik:** 1 — ilk geliştirilecek modül
+**Package:** `com.saas.core.*`
+**Dependency:** none (every other module depends on this)
+**Priority:** 1 — the first module to be developed
 
-## Sorumluluklar
+## Responsibilities
 
-- **Tenant modeli ve veri izolasyonu** — her tabloda `tenant_id`, her sorguda zorunlu filtre
-- **Auth + rol yönetimi** — Spring Security ile giriş, roller: `tenant_admin`, `tenant_staff` (platform_owner ayrı bir katman, bkz. [platform/roles-and-access.md](../platform/roles-and-access.md))
-- **Üyelik/paket motoru** — tüm modüller (fitness, berber) bu motoru kullanır; modüle özel değil
-- **Tenant-billing** — tenant'ın kendi müşterisinden aldığı ödeme/fatura takibi (platformun kendi geliriyle karıştırılmaz, bkz. [platform/billing-model.md](../platform/billing-model.md))
-- **Bildirim** — SMS/e-posta gönderimi için ortak arayüz (bkz. [platform/notifications.md](../platform/notifications.md))
-- **Feature flag sistemi** — hangi modül hangi tenant'ta açık, tenant `settings` alanında tutulur
+- **Tenant model and data isolation** — `tenant_id` on every table, a mandatory filter on every query
+- **Auth + role management** — login with Spring Security, roles: `tenant_admin`, `tenant_staff` (platform_owner is a separate layer, see [platform/roles-and-access.md](../platform/roles-and-access.md))
+- **Membership/package engine** — all modules (fitness, barber) use this engine; it is not module-specific
+- **Tenant-billing** — tracking of payments/invoices the tenant receives from its own customers (not to be mixed with the platform's own revenue, see [platform/billing-model.md](../platform/billing-model.md))
+- **Notifications** — a shared interface for sending SMS/email (see [platform/notifications.md](../platform/notifications.md))
+- **Feature flag system** — which module is enabled for which tenant, kept in the tenant `settings` field
 
-## Veri modeli (taslak)
+## Data model (draft)
 
 - `tenant` — id, name, active_modules (JSON)
-- `user` — id, tenant_id, role (`tenant_admin`/`tenant_staff`), login bilgisi — **sisteme giriş yapan, işletme içi kişi** (bkz. [glossary.md](../glossary.md))
-- `member` — id, tenant_id, name, phone, consent_at, user_id (nullable) — **işletmenin kendi müşterisi**; `user_id` sadece üyenin kendi hesabıyla giriş yaptığı senaryoda dolu (örn. fitness QR app'i), berber gibi personelin randevuyu adına açtığı senaryoda `user_id` boş kalabilir
+- `user` — id, tenant_id, role (`tenant_admin`/`tenant_staff`), login details — **a person inside the business who logs into the system** (see [glossary.md](../glossary.md))
+- `member` — id, tenant_id, name, phone, consent_at, user_id (nullable) — **the business's own customer**; `user_id` is filled only in the scenario where the member logs in with their own account (e.g. the fitness QR app); in scenarios like the barber, where staff open the appointment on the member's behalf, `user_id` may stay empty
 - `membership_plan` — id, tenant_id, name, duration, entry_allowance
 - `membership` — id, tenant_id, member_id, plan_id, start_at, end_at, status (`active`/`frozen`/`expired`)
 - `tenant_payment` — id, tenant_id, source_type (`membership`/`appointment`/`order`/...), source_id, amount, method, paid_at (tenant-billing)
 
-> Alan adları her zaman İngilizce (bkz. [code-style.md](../platform/code-style.md) "Dil kuralı") — `consent_at` alanı KVKK açık rıza tarihini tutar, kısaltma olarak "KVKK" kod içinde geçmez, hukuki referansı [kvkk-checklist.md](../platform/kvkk-checklist.md)'dedir.
+> Field names are always in English (see the "Language rule" in [code-style.md](../platform/code-style.md)) — the `consent_at` field holds the date of KVKK (Turkish personal data protection law) explicit consent; the abbreviation "KVKK" does not appear in code, and its legal reference is in [kvkk-checklist.md](../platform/kvkk-checklist.md).
 
-## Diğer modüllerle ilişki
+## Relationship with other modules
 
-Fitness ve berber modülleri `membership` ve `tenant-billing` tablolarını doğrudan kullanır, kendi üyelik/ödeme mantığını tekrar yazmaz. Modüle özel olan şey sadece "hizmetin ne olduğu" (QR check-in vs randevu) — üyelik/ödeme çekirdekte kalır.
+The fitness and barber modules use the `membership` and `tenant-billing` tables directly and do not rewrite their own membership/payment logic. The only module-specific thing is "what the service is" (QR check-in vs appointment) — membership/payment stay in the core.
 
-`tenant_payment`'in `source_type`/`source_id` alanları bilinçli olarak genel tutuldu: üyelik yerine geçen bir kavramı olmayan modüller (örn. sipariş bazlı çalışan bir dikey) da tenant-billing'i kullanabilsin diye. Yeni bir modül, kendi domain nesnesini (`order`, `reservation` vb.) `source_type` olarak ekler, `core`'da yeni bir tablo/migration gerekmez.
+The `source_type`/`source_id` fields of `tenant_payment` are deliberately kept generic: so that modules with no concept that replaces membership (e.g. an order-based vertical) can also use tenant-billing. A new module adds its own domain object (`order`, `reservation`, etc.) as a `source_type`, with no new table/migration needed in `core`.
 
-## Kapsam dışı
+## Out of scope
 
-- QR üretimi, randevu takvimi gibi modüle özel mantık burada olmaz — bunlar `modules/*` altındadır.
-- Platformun kendi tenant'lardan aldığı abonelik geliri (platform-billing) burada değil, `packages/platform` altındadır.
+- Module-specific logic such as QR generation and the appointment calendar does not belong here — these live under `modules/*`.
+- The subscription revenue the platform receives from tenants (platform-billing) is not here, it is under `packages/platform`.
 
-## İlgili dosyalar
+## Related files
 
-- Terimlerin kesin tanımı (`user` vs `member` farkı dahil): [glossary.md](../glossary.md)
-- Tenant/feature flag mekanizmasının detayı: [platform/tenant-model.md](../platform/tenant-model.md)
-- Rol hiyerarşisi: [platform/roles-and-access.md](../platform/roles-and-access.md)
-- Billing ayrımı: [platform/billing-model.md](../platform/billing-model.md)
-- KVKK ile ilgili alanlar: [platform/kvkk-checklist.md](../platform/kvkk-checklist.md)
-- İşlem geçmişi (kim ne değiştirdi): [platform/audit-log.md](../platform/audit-log.md)
-- Güvenlik (rate limiting, token ömrü): [platform/security.md](../platform/security.md)
-- Yeni modül eklerken bu dosyanın nasıl kullanılacağı: [workflow/new-module-checklist.md](../workflow/new-module-checklist.md)
+- The precise definition of terms (including the `user` vs `member` difference): [glossary.md](../glossary.md)
+- Details of the tenant/feature flag mechanism: [platform/tenant-model.md](../platform/tenant-model.md)
+- Role hierarchy: [platform/roles-and-access.md](../platform/roles-and-access.md)
+- Billing separation: [platform/billing-model.md](../platform/billing-model.md)
+- Fields related to KVKK: [platform/kvkk-checklist.md](../platform/kvkk-checklist.md)
+- Change history (who changed what): [platform/audit-log.md](../platform/audit-log.md)
+- Security (rate limiting, token lifetime): [platform/security.md](../platform/security.md)
+- How to use this file when adding a new module: [workflow/new-module-checklist.md](../workflow/new-module-checklist.md)

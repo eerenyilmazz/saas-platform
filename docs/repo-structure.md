@@ -1,43 +1,43 @@
-# Repo Yapısı
+# Repo Structure
 
-Tek monorepo, klasör bazlı modül ayrımı. Her modül `core`'a bağımlı, birbirine bağımlı değil — biri bozulursa diğeri etkilenmez, yeni modül eklemek mevcut kodu değiştirmeden yeni bir klasör açmak demek.
+A single monorepo with folder-based module separation. Every module depends on `core` and not on each other — if one breaks the other is not affected, and adding a new module means opening a new folder without changing existing code.
 
 ```
 saas-platform/
 ├── .github/
-│   └── workflows/             # GERÇEK CI/CD tanımları — GitHub sadece bu klasörü tarar
+│   └── workflows/             # the REAL CI/CD definitions — GitHub scans only this folder
 ├── apps/
-│   ├── api/                   # Spring Boot — tek Gradle projesi, tüm modülleri birleştiren çalıştırılabilir uygulama
+│   ├── api/                   # Spring Boot — a single Gradle project, the runnable application that combines all modules
 │   │   └── src/main/java/com/saas/
-│   │       ├── platform/      # SaaS sahibinin kendi işletim katmanı — tenant provizyonlama, platform faturalama
-│   │       ├── core/          # her tenant'ın kullandığı ortak katman: auth, tenant, üyelik motoru, tenant-billing, bildirim
+│   │       ├── platform/      # the SaaS owner's own operating layer — tenant provisioning, platform billing
+│   │       ├── core/          # the shared layer every tenant uses: auth, tenant, membership engine, tenant-billing, notifications
 │   │       └── modules/
-│   │           ├── berber/    # randevu tipi, hizmet süresi, iş kuralları
-│   │           └── fitness/   # QR giriş/çıkış, PT randevu, dondurma
-│   └── web/                   # React — admin panel + üye arayüzü (Capacitor ile sarılır)
+│   │           ├── berber/    # appointment type, service duration, business rules
+│   │           └── fitness/   # QR check-in/check-out, PT appointments, freezing
+│   └── web/                   # React — admin panel + member UI (wrapped with Capacitor)
 ├── infra/
-│   ├── docker/                # yerel geliştirme ortamı (db + api + web tek komutla ayağa kalkar)
-│   └── environments/          # staging/production ortam tanımları
+│   ├── docker/                # local development environment (db + api + web come up with a single command)
+│   └── environments/          # staging/production environment definitions
 └── docs/
-    └── adr/                   # mimari karar kayıtları (Architecture Decision Records)
+    └── adr/                   # architecture decision records (Architecture Decision Records)
 ```
 
-> **Faz 0'da netleşen karar:** `platform`/`core`/`modules` ayrı Gradle projeleri (fiziksel modüller) değil, **tek bir Gradle projesi** (`apps/api`) içindeki Java paketleridir. Fiziksel modül izolasyonu yerine [architecture-constraints.md](platform/architecture-constraints.md)'deki ArchUnit test suite'i sınır ihlallerini derleme sonrası test aşamasında yakalar — bu, modüler monolit felsefesine (tek deploy birimi, düşük operasyon yükü) daha uygun. Paket adları [package-naming.md](package-naming.md)'deki `com.saas.*` şemasıyla birebir eşleşir.
+> **Decision settled in Phase 0:** `platform`/`core`/`modules` are not separate Gradle projects (physical modules) but Java packages inside **a single Gradle project** (`apps/api`). Instead of physical module isolation, the ArchUnit test suite in [architecture-constraints.md](platform/architecture-constraints.md) catches boundary violations in the post-compile test stage — this fits the modular monolith philosophy better (a single deploy unit, low operational overhead). Package names match the `com.saas.*` scheme in [package-naming.md](package-naming.md) one to one.
 
-## Neden bu ayrım
+## Why this separation
 
-- `apps/` çalıştırılabilir uygulamaları taşır, `apps/api` içindeki Java paketleri mantığı ayırır.
-- `com.saas.platform` ile `com.saas.core` birbirine karıştırılmaz: **platform** = sen (SaaS sahibi) tenant'ları yönetirken kullanırsın, **core** = her tenant kendi işletmesini yönetirken kullanır. Detay: [platform/roles-and-access.md](platform/roles-and-access.md)
-- `docs/adr/` küçük ama önemli: "neden Spring Boot", "neden monorepo" gibi kararları tarihe not düşer — dolu liste: [adr/](adr/)
-- Yeni bir dikey (örn. güzellik salonu) eklemek = `com.saas.modules` altına yeni paket, `core`'u değiştirmeden.
+- `apps/` holds the runnable applications, and the Java packages inside `apps/api` separate the logic.
+- `com.saas.platform` and `com.saas.core` are not mixed: **platform** = you (the SaaS owner) use it when managing tenants, **core** = every tenant uses it when managing its own business. Details: [platform/roles-and-access.md](platform/roles-and-access.md)
+- `docs/adr/` is small but important: it records decisions like "why Spring Boot", "why a monorepo" for posterity — the full list: [adr/](adr/)
+- Adding a new vertical (e.g. a beauty salon) = a new package under `com.saas.modules`, without changing `core`.
 
-## Bağımlılık kuralı
+## Dependency rule
 
 ```
-apps/api          → com.saas.platform, com.saas.core, com.saas.modules.*  (hepsi aynı Gradle projesinde)
-apps/web          → (tüm API'leri HTTP üzerinden tüketir, doğrudan bağımlılık yok)
-com.saas.platform → com.saas.core (izin verilir — platform, core'un üstünde bir yönetim katmanı)
-modules/*         → com.saas.core (izin verilir)
-modules/*         → modules/* (yasak — modüller birbirine bağımlı olamaz, ArchUnit ile denetlenir)
-modules/*         → com.saas.platform (yasak — modüller platform katmanını hiç bilmez)
+apps/api          → com.saas.platform, com.saas.core, com.saas.modules.*  (all in the same Gradle project)
+apps/web          → (consumes all APIs over HTTP, no direct dependency)
+com.saas.platform → com.saas.core (allowed — platform is a management layer above core)
+modules/*         → com.saas.core (allowed)
+modules/*         → modules/* (forbidden — modules cannot depend on each other, enforced by ArchUnit)
+modules/*         → com.saas.platform (forbidden — modules know nothing of the platform layer)
 ```

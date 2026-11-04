@@ -30,13 +30,13 @@ Key decisions (full records in [`docs/adr/`](docs/adr)):
 
 | Decision | ADR |
 |---|---|
-| Monorepo layout | [0001](docs/adr/0001-monorepo-yapisi.md) |
+| Monorepo layout | [0001](docs/adr/0001-monorepo-structure.md) |
 | Spring Boot modular monolith | [0002](docs/adr/0002-spring-boot-modular-monolith.md) |
-| Shared database, `tenant_id` isolation | [0003](docs/adr/0003-shared-db-tenant-id-izolasyonu.md) |
+| Shared database, `tenant_id` isolation | [0003](docs/adr/0003-shared-db-tenant-id-isolation.md) |
 | PostgreSQL + Flyway | [0004](docs/adr/0004-postgresql-flyway.md) |
-| Capacitor for mobile | [0005](docs/adr/0005-capacitor-mobil-sarmalama.md) |
-| Externalised i18n strings | [0006](docs/adr/0006-i18n-string-disarida-tutma.md) |
-| UTC timestamps | [0007](docs/adr/0007-utc-zaman-damgasi.md) |
+| Capacitor for mobile | [0005](docs/adr/0005-capacitor-mobile-wrapping.md) |
+| Externalised i18n strings | [0006](docs/adr/0006-externalize-strings-from-day-one.md) |
+| UTC timestamps | [0007](docs/adr/0007-utc-timestamps.md) |
 | Row-Level Security | [0008](docs/adr/0008-row-level-security.md) |
 | Timestamp-based Flyway versions | [0009](docs/adr/0009-flyway-timestamp-versioning.md) |
 
@@ -147,8 +147,6 @@ cd apps/api
 | [docs/platform/domain-invariants.md](docs/platform/domain-invariants.md) | Business rules that must never break |
 | [docs/platform/tenant-isolation-enforcement.md](docs/platform/tenant-isolation-enforcement.md) | How tenant isolation is enforced |
 | [docs/workflow/agent-pipeline.md](docs/workflow/agent-pipeline.md) | Plan → code → review → test workflow |
-
-> Most of the documentation is written in Turkish; code identifiers are in English.
 
 ---
 

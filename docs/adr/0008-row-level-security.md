@@ -1,17 +1,17 @@
-# ADR 0008: Tenant izolasyonu, uygulama katmanına ek olarak veritabanı seviyesinde de (RLS) zorlanır
+# ADR 0008: Tenant isolation is also enforced at the database level (RLS), in addition to the application layer
 
-**Durum:** Kabul edildi
-**Tarih:** 2026-07-17
+**Status:** Accepted
+**Date:** 2026-07-17
 
-## Bağlam
+## Context
 
-[ADR 0003](0003-shared-db-tenant-id-izolasyonu.md) shared-DB + `tenant_id` kararını verdi. [tenant-model.md](../platform/tenant-model.md), bu izolasyonun "core'daki ortak repository/base sınıfında merkezi olarak uygulandığını" söylüyordu — ama bu **sadece uygulama katmanında** bir disiplin. Bir agent (ya da insan) elle yazılmış bir `@Query`'de, bir raporlama sorgusunda ya da ileride eklenecek bir admin panelinde `tenant_id` filtresini unutursa, hiçbir şey bunu engellemez — bir tenant'ın verisi başka bir tenant'a sızabilir. Shared-DB modelinin **tek ve en büyük riski** budur.
+[ADR 0003](0003-shared-db-tenant-id-isolation.md) decided on shared-DB + `tenant_id`. [tenant-model.md](../platform/tenant-model.md) said this isolation was "applied centrally in the shared repository/base class in core" — but that is a discipline **at the application layer only**. If an agent (or a human) forgets the `tenant_id` filter in a hand-written `@Query`, in a reporting query, or in an admin panel added later, nothing prevents it — one tenant's data could leak to another tenant. This is the shared-DB model's **single biggest risk**.
 
-## Karar
+## Decision
 
-Uygulama katmanındaki filtrelemeye **ek olarak** (onun yerine değil), PostgreSQL'in **Row-Level Security (RLS)** özelliği tüm tenant verisi taşıyan tablolarda aktif edilir. Veritabanı, bağlantının hangi tenant için açıldığını bilir ve o tenant dışındaki satırları **sorgu ne yazılırsa yazılsın** hiç döndürmez.
+**In addition to** (not instead of) filtering at the application layer, PostgreSQL's **Row-Level Security (RLS)** feature is enabled on all tables that hold tenant data. The database knows which tenant a connection was opened for and **never returns** rows outside that tenant, **no matter what query is written**.
 
-## Nasıl çalışır (özet)
+## How it works (summary)
 
 ```sql
 ALTER TABLE member ENABLE ROW LEVEL SECURITY;
@@ -21,29 +21,29 @@ CREATE POLICY tenant_isolation ON member
     USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 ```
 
-- Backend, her istek başında (auth interceptor'da, JWT'den `tenant_id` çıkarıldıktan hemen sonra) veritabanı bağlantısına `SET LOCAL app.current_tenant_id = '<tenant_id>'` komutunu çalıştırır.
-- Bundan sonra o bağlantı üzerinden yazılan **her** sorgu (elle yazılmış, JPA'nın ürettiği, raporlama amaçlı olsun) otomatik olarak sadece o tenant'ın satırlarını görür — `WHERE tenant_id = ...` yazmayı unutmak artık bir güvenlik açığı değil, en kötü ihtimalle gereksiz bir satırdır.
-- **Uygulama, migration'ları çalıştıran rolle asla aynı rolle bağlanmaz** — bkz. Faz 1 uygulama notu aşağıda. Bu ayrım olmadan yukarıdaki iki satır (`ENABLE`/`FORCE`) hiçbir işe yaramaz.
+- At the start of every request (in the auth interceptor, right after extracting `tenant_id` from the JWT), the backend runs `SET LOCAL app.current_tenant_id = '<tenant_id>'` on the database connection.
+- From then on, **every** query written over that connection (hand-written, JPA-generated, or for reporting) automatically sees only that tenant's rows — forgetting to write `WHERE tenant_id = ...` is no longer a security hole, at worst it is a redundant clause.
+- **The application never connects with the same role that runs the migrations** — see the Phase 1 implementation note below. Without this separation, the two lines above (`ENABLE`/`FORCE`) are useless.
 
-## Sonuç
+## Consequences
 
-- **Savunma derinliği (defense in depth):** Uygulama katmanı (ortak repository) birincil savunma, RLS ikincil/yedek savunma olur — biri atlanırsa diğeri hâlâ durur.
-- Maliyet: Her tabloda RLS aktif etmek bir migration adımı (bkz. [database-conventions.md](../platform/database-conventions.md)) — yeni bir tablo eklenirken bu adım [new-module-checklist.md](../workflow/new-module-checklist.md)'ye zorunlu adım olarak eklenir.
-- `platform_owner`'ın [support-access.md](../platform/support-access.md)'deki destek modu gibi **kasıtlı olarak** tenant sınırını aşması gereken senaryolar için ayrı, ayrıca loglanan bir veritabanı rolü/bypass mekanizması tanımlanır — RLS bunu da öngörür, "hiç kimse hiçbir zaman göremez" değil, "varsayılan olarak göremez, bilinçli/loglu istisna dışında."
-- Detaylı uygulama ve test stratejisi: [platform/tenant-isolation-enforcement.md](../platform/tenant-isolation-enforcement.md).
+- **Defense in depth:** The application layer (shared repository) is the primary defense and RLS is the secondary/backup defense — if one is bypassed, the other still holds.
+- Cost: enabling RLS on every table is a migration step (see [database-conventions.md](../platform/database-conventions.md)) — this step is added as a mandatory step to [new-module-checklist.md](../workflow/new-module-checklist.md) when a new table is added.
+- For scenarios where the `platform_owner` **deliberately** has to cross the tenant boundary, such as the support mode in [support-access.md](../platform/support-access.md), a separate, separately logged database role/bypass mechanism is defined — RLS anticipates this too: it is not "no one can ever see it" but "cannot see it by default, except through a deliberate, logged exception."
+- Detailed implementation and test strategy: [platform/tenant-isolation-enforcement.md](../platform/tenant-isolation-enforcement.md).
 
-## Gözden geçirme koşulu
+## Revisit condition
 
-Yok — bu, geri dönüşü kolay olmayan ama maliyeti düşük bir güvenlik kararı; shared-DB modeli kullanıldığı sürece geçerliliğini korur.
+None — this is a security decision that is not easy to reverse but is low in cost; it remains valid for as long as the shared-DB model is used.
 
-## Geçmiş bağlam
+## Historical context
 
-- **Orijinal olay/bulgu:** Bu karar, kod hiç yazılmadan önce yapılan bir dış mimari incelemesinden çıktı — harici bir AI değerlendirmesi (Gemini), o ana kadarki tasarımın (`tenant-model.md`'deki "ortak repository filtreler" ifadesi) sadece **uygulama disiplinine** dayandığını, veritabanının kendisinin hiçbir garantisi olmadığını işaret etti. O ana kadar bu, "elbette agent'lar `tenant_id` filtresini unutmaz" varsayımıyla örtük kabul edilmişti.
-- **Reddedilen alternatifler:** Hibernate `@Filter` (sadece JPA üzerinden erişimde çalışır, ham SQL/raporlama sorgularında korumasız kalır — bu yüzden yetersiz bulundu). Sadece kod review disiplinine güvenmek (insan/agent hatasına açık, tek katmanlı savunma).
-- **Başarısızlık senaryosu:** Bir agent, bir raporlama endpoint'i ya da elle yazılmış bir `@Query` içinde `tenant_id` filtresini unutursa (özellikle çok sayıda agent'ın paralel çalıştığı bir ortamda bu istatistiksel olarak er ya da geç olur), Tenant A'nın üye listesi/randevuları Tenant B'ye sızabilirdi — bu, shared-DB modelinin göze alınan tek büyük riskiydi ve RLS olmadan **sadece zaman meselesiydi**.
+- **Original incident/finding:** This decision came out of an external architecture review done before any code was written — an external AI evaluation (Gemini) pointed out that the design up to that point (the "the shared repository filters" wording in `tenant-model.md`) relied only on **application discipline**, and that the database itself offered no guarantee. Until then this had been implicitly accepted under the assumption that "of course agents won't forget the `tenant_id` filter."
+- **Rejected alternatives:** Hibernate `@Filter` (works only for access through JPA and leaves raw SQL/reporting queries unprotected — found insufficient for that reason). Relying on code review discipline alone (open to human/agent error, a single-layer defense).
+- **Failure scenario:** If an agent forgot the `tenant_id` filter in a reporting endpoint or a hand-written `@Query` (statistically this will happen sooner or later, especially in an environment where many agents work in parallel), Tenant A's member list/appointments could have leaked to Tenant B — this was the one big risk accepted with the shared-DB model, and without RLS it was **only a matter of time**.
 
-## Faz 1 uygulama notu — ikinci bir bulgu, kod yazılırken
+## Phase 1 implementation note — a second finding, while writing the code
 
-Bu kararın Faz 1'de gerçekten koda dökülmesi sırasında (ilk `tenant` tablosu + RLS testi), **`FORCE ROW LEVEL SECURITY` tek başına yetersiz çıktı**: PostgreSQL'de superuser rolleri RLS'i `FORCE` dahil koşulsuz atlar. Yerel/Docker kurulumunda `POSTGRES_USER` ile açılan rol (migration'ları çalıştıran rol) her zaman superuser'dır — uygulama çalışma zamanında da bu rolle bağlansaydı, yukarıdaki `ENABLE`/`FORCE`/`CREATE POLICY` satırlarının **hiçbiri hiçbir işe yaramazdı**, sessizce.
+When this decision was actually put into code in Phase 1 (the first `tenant` table + RLS test), **`FORCE ROW LEVEL SECURITY` alone turned out to be insufficient**: in PostgreSQL, superuser roles bypass RLS unconditionally, `FORCE` included. In a local/Docker setup, the role created with `POSTGRES_USER` (the role that runs the migrations) is always a superuser — had the application also connected with this role at runtime, **none** of the `ENABLE`/`FORCE`/`CREATE POLICY` lines above would have done anything, silently.
 
-**Düzeltme:** Migration'ları çalıştıran rol (superuser, `spring.flyway.*` ile ayrı yapılandırılır) ile uygulamanın çalışma zamanında bağlandığı rol (`saas_app`, `NOSUPERUSER NOBYPASSRLS`, `spring.datasource.*`) **kesin olarak ayrıldı**. Bu ayrım, [tenant-isolation-enforcement.md](../platform/tenant-isolation-enforcement.md)'ye zorunlu bir adım olarak eklendi — bir Testcontainers testi (`rlsCannotBeBypassed`) bu hatayı, kod incelemesi değil gerçek bir test çalıştırması yakaladı.
+**Fix:** The role that runs the migrations (a superuser, configured separately via `spring.flyway.*`) and the role the application connects with at runtime (`saas_app`, `NOSUPERUSER NOBYPASSRLS`, via `spring.datasource.*`) were **strictly separated**. This separation was added as a mandatory step to [tenant-isolation-enforcement.md](../platform/tenant-isolation-enforcement.md) — a Testcontainers test (`rlsCannotBeBypassed`) caught this bug, not a code review but an actual test run.

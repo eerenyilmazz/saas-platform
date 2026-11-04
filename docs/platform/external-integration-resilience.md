@@ -1,25 +1,25 @@
-# Dış Entegrasyon Dayanıklılığı
+# External Integration Resilience
 
-Platform, kendi kontrolünde olmayan dış servislere bağımlı: SMS sağlayıcısı ([notifications.md](notifications.md)), ileride ödeme sağlayıcısı ([billing-model.md](billing-model.md) v1.3). Bu servislerden biri yavaşlar/çökerse, bunun tüm API'yi aşağı çekmemesi gerekir.
+The platform depends on external services that are outside its control: the SMS provider ([notifications.md](notifications.md)) and, in the future, the payment provider ([billing-model.md](billing-model.md) v1.3). If one of these services slows down/crashes, it must not drag down the whole API.
 
-## Kural: zaman aşımı + devre kesici (circuit breaker) + yeniden deneme
+## Rule: timeout + circuit breaker + retry
 
-- **Zaman aşımı (timeout):** Her dış servis çağrısına kısa bir üst süre konur (öneri: 3-5 saniye) — SMS sağlayıcısı yanıt vermiyorsa, kullanıcının API isteği sonsuza kadar beklemez.
-- **Devre kesici:** Bir dış servis art arda başarısız olmaya başlarsa (öneri: 5 ardışık hata), o servise yapılan çağrılar kısa bir süre (öneri: 1 dakika) otomatik olarak durdurulur ("devre açılır") — her isteğin boşuna zaman aşımına uğramasını önler. Süre dolunca tek bir deneme yapılır, başarılıysa devre kapanır.
-- **Yeniden deneme (retry):** Geçici hatalarda (ağ kopması gibi) 1-2 kez otomatik tekrar denenir, kalıcı hatalarda (geçersiz telefon numarası gibi) tekrar denenmez — bu ayrım [error-handling.md](error-handling.md)'deki exception hiyerarşisine dayanır (`ValidationException` tekrar denenmez, ağ kaynaklı olanlar denenir).
+- **Timeout:** A short upper limit is set on every external service call (suggestion: 3-5 seconds) — if the SMS provider does not respond, the user's API request does not wait forever.
+- **Circuit breaker:** If an external service starts failing consecutively (suggestion: 5 consecutive errors), calls to that service are automatically stopped for a short period (suggestion: 1 minute) ("the circuit opens") — preventing every request from timing out needlessly. When the time is up a single attempt is made, and if it succeeds the circuit closes.
+- **Retry:** For transient errors (such as a network drop) 1-2 automatic retries are made, for permanent errors (such as an invalid phone number) no retry is made — this distinction is based on the exception hierarchy in [error-handling.md](error-handling.md) (`ValidationException` is not retried, network-related ones are).
 
-## Bu, ana akışı bloklamamalı
+## This must not block the main flow
 
-**En önemli kural:** SMS gönderimi başarısız olursa, tetikleyen asıl işlem (örn. bir üyelik kaydı oluşturma) **başarısız olmaz**. Bildirim, asıl işlemden ayrı, asenkron bir kuyruk/iş üzerinden gönderilir — `core.notifications`'ın kendi hata durumu, `core.membership`'in işlemini geri almaz (rollback etmez).
+**The most important rule:** If sending an SMS fails, the main operation that triggered it (e.g. creating a membership record) **does not fail**. The notification is sent through an asynchronous queue/job separate from the main operation — the failure state of `core.notifications` does not roll back the operation of `core.membership`.
 
-- Teknik olarak: bildirim gönderimi, ana transaction commit olduktan **sonra** tetiklenir (Spring `@TransactionalEventListener(phase = AFTER_COMMIT)` gibi bir mekanizma).
-- Bildirim gönderimi kalıcı olarak başarısız olursa, bu [observability.md](../infra/observability.md)'deki hata izlemeye düşer ama kullanıcıya gösterilen asıl işlem (üyelik oluşturuldu, randevu alındı) hatasız tamamlanmış olarak kalır.
+- Technically: the notification sending is triggered **after** the main transaction commits (a mechanism such as Spring's `@TransactionalEventListener(phase = AFTER_COMMIT)`).
+- If notification sending fails permanently, this lands in the error tracking in [observability.md](../infra/observability.md), but the main operation shown to the user (membership created, appointment booked) remains completed without error.
 
-## Kapsam dışı (MVP'de yok)
+## Out of scope (not in the MVP)
 
-- Dış servisler için ayrı bir mesaj kuyruğu altyapısı (RabbitMQ/Kafka) — trafik hacmi bunu gerektirmiyor, uygulama içi asenkron event yeterli.
+- A separate message queue infrastructure for external services (RabbitMQ/Kafka) — the traffic volume does not require it, and an in-application asynchronous event is enough.
 
-## İlgili dosyalar
+## Related files
 
 - [notifications.md](notifications.md)
 - [error-handling.md](error-handling.md)

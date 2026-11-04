@@ -1,50 +1,50 @@
-# Mimari Kısıtlar (İhlal Edilemez Kurallar)
+# Architecture Constraints (Inviolable Rules)
 
-Şu ana kadarki dosyalar mimariyi **anlatıyordu**; bu dosya mimariyi **zorluyor**. Aşağıdaki kurallar öneri değil, ihlal edilemez sınırlardır — bir coder agent bunlardan birini ihlal ederse, [code-review-checklist.md](../workflow/code-review-checklist.md)'nin 1. kategorisi (sınır ihlali) gereği PR otomatik reddedilir, tartışmaya açılmaz.
+The files so far **described** the architecture; this file **enforces** it. The rules below are not suggestions but inviolable boundaries — if a coder agent violates one of them, the PR is rejected automatically under category 1 (boundary violation) of [code-review-checklist.md](../workflow/code-review-checklist.md), and it is not open to debate.
 
-## ASLA yapılmayacaklar
+## NEVER do
 
-- **ASLA** bir `Controller`, `Repository`'yi doğrudan çağırmaz — her zaman `Service` katmanından geçer (bkz. [code-style.md](code-style.md) katman yapısı).
-- **ASLA** bir modül (`modules/fitness`), başka bir modülün (`modules/berber`) entity/repository/service sınıfını import etmez (bkz. [repo-structure.md](../repo-structure.md) bağımlılık kuralı, [bounded-context-matrix.md](bounded-context-matrix.md)).
-- **ASLA** ortak bir "util" sınıfı iş kuralı (business logic) içermez — util sadece saf, durumsuz yardımcı fonksiyon barındırır (örn. tarih biçimlendirme evet, üyelik süresi hesaplama hayır — ikincisi `MembershipService`'e ait).
-- **ASLA** circular dependency oluşturulmaz (A modülü B'ye, B de A'ya bağımlı olamaz) — bu zaten [repo-structure.md](../repo-structure.md)'deki tek yönlü bağımlılık grafiğiyle yapısal olarak engellenir; bir circular dependency **ihtiyacı doğduysa**, bu bir tasarım hatasının belirtisidir, `@Lazy` ile "çözülmez", modül sınırı yeniden düşünülür.
-- **ASLA** Java reflection ile framework dışı, elle yazılmış bir mekanizma kurulmaz (Spring zaten reflection'ı kendi içinde kullanır, uygulama kodu bunu tekrar etmez).
-- **ASLA** bir `Controller` iş kuralı (if/else zinciriyle karar verme, hesaplama) içermez — controller sadece istek/yanıtı `Service`'e devreder (bkz. [anti-patterns.md](anti-patterns.md) "Business Logic Controller").
-- **ASLA** bir sınıfta (özellikle Spring'in varsayılan **singleton scope**'undaki `@Service`/`@Component`) mutable, istek/tenant'a özel durum tutan bir `field` bulunmaz — bkz. aşağıdaki "Bellek seviyesinde tenant izolasyonu".
-- **ASLA** bir modül kendi `pom.xml`/`build.gradle` dosyasında bağımsız bir kütüphane sürümü tanımlamaz — sürümler sadece root projedeki BOM'dan gelir (bkz. [dependency-management.md](dependency-management.md)).
-- **ASLA** iş mantığı (`Service` katmanı) içinde `if (tenantId.equals("..."))` gibi belirli bir tenant'a özel dallanma yazılmaz — bkz. [tenant-customization.md](tenant-customization.md).
+- A `Controller` **NEVER** calls a `Repository` directly — it always goes through the `Service` layer (see the layer structure in [code-style.md](code-style.md)).
+- A module (`modules/fitness`) **NEVER** imports another module's (`modules/berber`) entity/repository/service class (see the dependency rule in [repo-structure.md](../repo-structure.md), [bounded-context-matrix.md](bounded-context-matrix.md)).
+- A shared "util" class **NEVER** contains business logic — a util holds only pure, stateless helper functions (e.g. date formatting yes, membership duration calculation no — the latter belongs to `MembershipService`).
+- Circular dependencies are **NEVER** created (module A cannot depend on B while B depends on A) — this is already structurally prevented by the one-directional dependency graph in [repo-structure.md](../repo-structure.md); if a circular dependency **need arises**, it is a symptom of a design error, it is not "solved" with `@Lazy`, the module boundary is rethought.
+- A hand-written mechanism outside the framework is **NEVER** built with Java reflection (Spring already uses reflection internally; application code does not repeat it).
+- A `Controller` **NEVER** contains business rules (deciding with an if/else chain, calculations) — the controller only delegates the request/response to the `Service` (see "Business Logic Controller" in [anti-patterns.md](anti-patterns.md)).
+- A class (especially a `@Service`/`@Component` in Spring's default **singleton scope**) **NEVER** has a mutable `field` that holds request/tenant-specific state — see "In-memory tenant isolation" below.
+- A module **NEVER** defines an independent library version in its own `pom.xml`/`build.gradle` file — versions come only from the BOM in the root project (see [dependency-management.md](dependency-management.md)).
+- Branching specific to a particular tenant such as `if (tenantId.equals("..."))` is **NEVER** written inside business logic (the `Service` layer) — see [tenant-customization.md](tenant-customization.md).
 
-## Bellek seviyesinde tenant izolasyonu (RLS'in koruyamadığı katman)
+## In-memory tenant isolation (the layer RLS cannot protect)
 
-[ADR 0008](../adr/0008-row-level-security.md)'deki RLS, veritabanından okunan veriyi korur — ama veri bir kere DB'den **yasal olarak** çekilip uygulama belleğine (RAM) alındıktan sonra, RLS'in hiçbir etkisi kalmaz. Bir sonraki tenant'ın isteğini işleyen aynı thread/instance, önceki tenant'ın verisine bellek üzerinden erişebilir hale gelebilir — bu, RLS'in **kapsamadığı**, tamamen uygulama koduna bağlı bir risktir.
+The RLS in [ADR 0008](../adr/0008-row-level-security.md) protects data read from the database — but once data has been **legitimately** pulled from the DB into application memory (RAM), RLS no longer has any effect. The same thread/instance that handles the next tenant's request could gain access to the previous tenant's data through memory — this is a risk RLS **does not cover**, depending entirely on application code.
 
-- **Static/global mutable state yasak:** `static` bir `Map`/cache/singleton alanı, arka planda tüm tenant'lar arasında paylaşılır. Böyle bir yapı **kesinlikle gerekiyorsa** (örn. bir cache), anahtar her zaman `tenant_id` ile başlamak zorundadır (`tenant_id + ":" + key`) — bkz. [caching-strategy.md](caching-strategy.md).
-- **Singleton bean'lerde mutable field yasak:** Spring'in varsayılan `@Service` scope'u singleton'dır — bir istek işlenirken bu bean'e mutable bir alana (örn. "şu anki tenant" gibi) değer atamak, o değerin başka bir eşzamanlı isteğe (başka bir tenant'a) sızmasına yol açar. Tenant/istek bazlı veri **her zaman** metod parametresi ya da `ThreadLocal` üzerinden taşınır, asla bean field'ında değil.
-- **ThreadLocal kullanılıyorsa zorunlu temizlik:** Uygulama sunucusu thread'leri **yeniden kullanır** (thread pool) — bir istek bitince `ThreadLocal` içeriği elle temizlenmezse, aynı thread'i sonraki isteğinde alan **farklı bir tenant** önceki tenant'ın verisini görebilir. Her `ThreadLocal.set(...)` çağrısının karşılığında bir `finally` bloğunda `ThreadLocal.remove()` **zorunludur** — bu, [code-review-checklist.md](../workflow/code-review-checklist.md)'nin 1. kategorisinde (sınır ihlali, en ciddi seviye) aranır.
-- **Denetim:** Bu üç kural da [static-analysis.md](static-analysis.md)'ye özel bir kural seti olarak eklenir (örn. Checkstyle/ArchUnit ile "singleton bean'de mutable field yasak" kontrolü) — sadece code review'a güvenilmez, çünkü bu tür bir hata testlerde genelde görünmez (tek tenant'lı test senaryosunda sızıntı tetiklenmez), sadece production'da eşzamanlı çoklu tenant trafiğinde ortaya çıkar.
+- **Static/global mutable state is banned:** a `static` `Map`/cache/singleton field is shared among all tenants in the background. If such a structure is **absolutely necessary** (e.g. a cache), the key must always start with `tenant_id` (`tenant_id + ":" + key`) — see [caching-strategy.md](caching-strategy.md).
+- **Mutable fields in singleton beans are banned:** Spring's default `@Service` scope is singleton — assigning a value to a mutable field (such as "the current tenant") on this bean while processing a request causes that value to leak to another concurrent request (another tenant). Tenant/request-specific data is **always** carried via method parameters or `ThreadLocal`, never in a bean field.
+- **If ThreadLocal is used, cleanup is mandatory:** Application server threads are **reused** (thread pool) — if the `ThreadLocal` contents are not cleared by hand when a request ends, **a different tenant** that gets the same thread on its next request could see the previous tenant's data. For every `ThreadLocal.set(...)` call, a `ThreadLocal.remove()` in a `finally` block is **mandatory** — this is checked under category 1 of [code-review-checklist.md](../workflow/code-review-checklist.md) (boundary violation, the most serious level).
+- **Enforcement:** All three rules are added as a dedicated rule set in [static-analysis.md](static-analysis.md) (e.g. a check for "no mutable fields in singleton beans" with Checkstyle/ArchUnit) — code review alone is not relied upon, because this kind of bug is usually invisible in tests (the leak is not triggered in a single-tenant test scenario) and shows up only in production under concurrent multi-tenant traffic.
 
-## Karmaşıklık bütçesi (rehber sayılar)
+## Complexity budget (guideline numbers)
 
-Sayısal bir üst sınır, agent'ların büyümesine izin verdiği "God Class" riskini erken keser:
+A numeric upper limit cuts off the "God Class" risk early, which agents otherwise let grow:
 
-| Birim | Üst sınır (rehber) |
+| Unit | Upper limit (guideline) |
 |---|---|
-| Method | ~30 satır |
-| Sınıf | ~500 satır |
-| Service sınıfı (tek bir modülün ana iş mantığı) | ~200 satır — aşılıyorsa muhtemelen birden fazla sorumluluk taşıyor, bölünmeli |
+| Method | ~30 lines |
+| Class | ~500 lines |
+| Service class (the main business logic of a single module) | ~200 lines — if exceeded, it probably carries multiple responsibilities and should be split |
 
-Bu sayılar [static-analysis.md](static-analysis.md)'deki cyclomatic complexity uyarısıyla aynı mantıkta: mekanik bir yasa değil, "muhtemelen bölünmeli" sinyali — ama bir agent net bir sayı olmadan "çok mu uzun" sorusuna kendi kendine karar veremez, bu yüzden burada somutlaştırıldı.
+These numbers follow the same logic as the cyclomatic complexity warning in [static-analysis.md](static-analysis.md): not a mechanical law but a "probably should be split" signal — but an agent cannot decide on its own whether something is "too long" without a clear number, so it is made concrete here.
 
-## Bu kısıtların denetlenmesi
+## Enforcing these constraints
 
-Mümkün olduğunca bu kurallar **prosa değil, otomatik test** ile denetlenir — bir ArchUnit test suite'i (`core`'da, tüm modülleri tarayan) yukarıdaki "modül A, modül B'yi import edemez" ve "Controller, Repository'yi çağıramaz" kurallarını CI'da otomatik doğrular, insan/reviewer agent'ın gözden kaçırma riski ortadan kalkar. Bu test suite'i Faz 0'da kurulur (bkz. [roadmap/phases.md](../roadmap/phases.md)).
+Wherever possible these rules are enforced by **automated tests, not prose** — an ArchUnit test suite (in `core`, scanning all modules) automatically verifies in CI the rules above such as "module A cannot import module B" and "a Controller cannot call a Repository", eliminating the risk of a human/reviewer agent missing it. This test suite is set up in Phase 0 (see [roadmap/phases.md](../roadmap/phases.md)).
 
-## İlgili dosyalar
+## Related files
 
-- [bounded-context-matrix.md](bounded-context-matrix.md) — hangi modülün hangisini görebileceği
-- [anti-patterns.md](anti-patterns.md) — yasaklı kod kalıpları
-- [static-analysis.md](static-analysis.md) — otomatik denetleme katmanı
-- [caching-strategy.md](caching-strategy.md) — cache anahtarlarının tenant_id kuralı
-- [dependency-management.md](dependency-management.md) — BOM/merkezi sürüm zorunluluğu
-- [tenant-customization.md](tenant-customization.md) — tenant'a özel isteklerin doğru çözüm yeri
+- [bounded-context-matrix.md](bounded-context-matrix.md) — which module can see which
+- [anti-patterns.md](anti-patterns.md) — banned code patterns
+- [static-analysis.md](static-analysis.md) — the automated enforcement layer
+- [caching-strategy.md](caching-strategy.md) — the tenant_id rule for cache keys
+- [dependency-management.md](dependency-management.md) — the BOM/centralized version requirement
+- [tenant-customization.md](tenant-customization.md) — the right place to solve tenant-specific requests
 - [../adr/0008-row-level-security.md](../adr/0008-row-level-security.md), [../adr/0009-flyway-timestamp-versioning.md](../adr/0009-flyway-timestamp-versioning.md)

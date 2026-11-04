@@ -1,58 +1,58 @@
-# Billing Modeli — İki Ayrı Para Akışı
+# Billing Model — Two Separate Money Flows
 
-Önceki dokümanlarda tek bir "billing" kavramı vardı, bu yanıltıcı. Aslında **birbirinden tamamen bağımsız iki akış** var — karıştırılırsa senin cironla tenant'ın cirosu aynı tabloda karışır.
+In earlier documents there was a single "billing" concept, which was misleading. In fact there are **two completely independent flows** — if they are mixed, your revenue and the tenant's revenue get mixed in the same table.
 
-## 1. Platform-billing — senin gelirin
+## 1. Platform-billing — your revenue
 
 `com.saas.platform.billing`
 
-Salon sahibi (tenant), **senin SaaS'ını kullandığı için** sana öder — modül bazlı abonelik.
+The salon owner (tenant) pays you **for using your SaaS** — a module-based subscription.
 
 ```
-tenant → platform (sana)   [aylık abonelik: aktif modül sayısı × modül fiyatı]
+tenant → platform (you)   [monthly subscription: number of active modules × module price]
 ```
 
-- **MVP karar:** Otomatik ödeme entegrasyonu yok. Manuel takip — `platform_subscription` tablosunda tenant, plan, ödeme durumu (ödendi/gecikti) tutulur, sen banka havalesi/manuel fatura ile tahsil edersin.
-- **Neden:** İlk 1-2 tenant için otomasyon kurmak gereksiz mühendislik yükü. Tenant sayısı 10+ olunca (bkz. [roadmap/versions.md](../roadmap/versions.md) v1.2) otomatik tekrarlayan ödeme (iyzico/PayTR abonelik API'si) eklenir.
+- **MVP decision:** No automatic payment integration. Manual tracking — the `platform_subscription` table holds the tenant, plan, payment status (paid/overdue), and you collect by bank transfer/manual invoice.
+- **Why:** Building automation for the first 1-2 tenants is unnecessary engineering load. When the number of tenants reaches 10+ (see [roadmap/versions.md](../roadmap/versions.md) v1.2), automatic recurring payment (the iyzico/PayTR subscription API) is added.
 
-### Veri modeli (taslak)
+### Data model (draft)
 
-- `platform_subscription` — id, tenant_id, plan (hangi modüller dahil), monthly_fee, status (`active`/`overdue`/`cancelled`), next_payment_at
+- `platform_subscription` — id, tenant_id, plan (which modules are included), monthly_fee, status (`active`/`overdue`/`cancelled`), next_payment_at
 
-## 2. Tenant-billing — tenant'ın kendi geliri
+## 2. Tenant-billing — the tenant's own revenue
 
 `com.saas.core.billing`
 
-Tenant'ın **kendi müşterisi** (spor salonu üyesi, berber müşterisi), tenant'a öder. Bu akışta sen sadece altyapıyı sağlıyorsun, para senden geçmiyor (senin hesabına girmiyor) — tenant kendi ödeme sağlayıcısını (POS, banka, nakit) kullanır.
+The tenant's **own customer** (gym member, barber client) pays the tenant. In this flow you only provide the infrastructure, the money does not pass through you (it does not enter your account) — the tenant uses its own payment provider (POS, bank, cash).
 
 ```
-tenant'ın müşterisi → tenant   [üyelik ücreti, hizmet ücreti]
+tenant's customer → tenant   [membership fee, service fee]
 ```
 
-- Bu akış `core.membership` ile birlikte çalışır: bir üyelik satışı hem `membership` kaydı açar hem `core.billing`'de bir tahsilat kaydı oluşturur.
-- Her tenant'ta "üyelik" karşılığı olmayabilir (örn. sipariş bazlı çalışan bir dikey) — bu yüzden `tenant_payment` bir üyeliğe değil, **genel bir kaynağa** bağlanır (aşağıya bkz.).
-- MVP'de bu da **kayıt tutma** amaçlı — gerçek ödeme tahsilatı (online ödeme linki, kart okuma) v1'den sonraya bırakılabilir; ilk sürümde tenant ödemeyi kendi yöntemiyle alır, sisteme sadece "ödendi" bilgisini girer.
+- This flow works together with `core.membership`: a membership sale both opens a `membership` record and creates a collection record in `core.billing`.
+- Not every tenant has an equivalent of "membership" (e.g. an order-based vertical) — that is why `tenant_payment` is linked not to a membership but to **a generic source** (see below).
+- In the MVP this too is for **record keeping** — actual payment collection (online payment link, card reading) can be left until after v1; in the first release the tenant takes payment its own way and only enters the "paid" information into the system.
 
-### Veri modeli (taslak)
+### Data model (draft)
 
 - `tenant_payment` — id, tenant_id, source_type (`membership`/`appointment`/`order`/...), source_id, amount, method (`cash`/`card`/`transfer`), paid_at
 
-> Neden `membership_id` sabit bir kolon değil: bir modülün "satış birimi" her zaman üyelik ya da randevu olmayabilir (örn. sipariş). `source_type`/`source_id` ile her modül kendi domain nesnesini tenant-billing'e bağlayabilir, `core`'da yeni migration gerekmez. Bu genelleme [modules/core.md](../modules/core.md)'daki veri modeliyle birebir aynı.
+> Why `membership_id` is not a fixed column: a module's "unit of sale" is not always a membership or an appointment (e.g. an order). With `source_type`/`source_id`, each module can link its own domain object to tenant-billing without a new migration in `core`. This generalization is identical to the data model in [modules/core.md](../modules/core.md).
 
-## Ayrım tablosu
+## Distinction table
 
 | | Platform-billing | Tenant-billing |
 |---|---|---|
-| Kim kime öder | tenant → sen | tenant'ın müşterisi → tenant |
-| Paket | `platform.billing` | `core.billing` |
-| Kimin görebileceği | sadece `platform_owner` | `tenant_admin`, kendi verisi |
-| MVP'de otomasyon | hayır, manuel takip | hayır, kayıt tutma |
-| İleride | iyzico/PayTR abonelik | tenant kendi ödeme sağlayıcısını bağlayabilir (v2+) |
+| Who pays whom | tenant → you | tenant's customer → tenant |
+| Package | `platform.billing` | `core.billing` |
+| Who can see it | only `platform_owner` | `tenant_admin`, its own data |
+| Automation in the MVP | no, manual tracking | no, record keeping |
+| Later | iyzico/PayTR subscription | the tenant can connect its own payment provider (v2+) |
 
-## Açık soru
+## Open question
 
-Tenant-billing'de tenant'a hangi ödeme sağlayıcısını önereceğimiz (iyzico, PayTR, Param) senin mevcut iş ilişkilerine bağlı — bkz. konuşmanın sonundaki açık sorular listesi.
+Which payment provider to recommend to the tenant in tenant-billing (iyzico, PayTR, Param) depends on your existing business relationships — see the open questions list at the end of the conversation.
 
-## İlgili dosyalar
+## Related files
 
-- [pricing-packaging.md](pricing-packaging.md) — `platform_subscription`'ın kademe yapısı (rakamsız)
+- [pricing-packaging.md](pricing-packaging.md) — the tier structure of `platform_subscription` (without figures)

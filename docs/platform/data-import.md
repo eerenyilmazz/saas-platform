@@ -1,49 +1,49 @@
-# Mevcut Veriden Geçiş (Data Import)
+# Migrating Existing Data (Data Import)
 
-## Neden gerekli
+## Why it is needed
 
-Hedef müşteri profili "Excel + WhatsApp'tan sipariş/randevu alan esnaf" — yani yeni bir tenant açıldığında elinde genelde zaten bir müşteri/üye listesi (Excel, defter, başka bir programın çıktısı) oluyor. [onboarding.md](onboarding.md) hesabın nasıl açıldığını anlatıyor ama "var olan 200 üyeyi nasıl sisteme sokarız" sorusuna cevap vermiyordu.
+The target customer profile is "tradespeople who take orders/appointments over Excel + WhatsApp" — so when a new tenant is opened, they usually already have a customer/member list (Excel, a notebook, the output of another program). [onboarding.md](onboarding.md) explains how the account is opened but did not answer "how do we get the existing 200 members into the system".
 
-## MVP kararı: CSV import, tek seferlik, platform_owner destekli
+## MVP decision: CSV import, one-off, supported by the platform_owner
 
-Self-servis bir "Excel yükle" arayüzü MVP'de yok — sebebi [onboarding.md](onboarding.md)'deki aynı mantık: erken aşamada az sayıda tenant için bu otomasyon gereksiz mühendislik yükü.
+There is no self-service "upload Excel" interface in the MVP — for the same reason as in [onboarding.md](onboarding.md): in the early stage, this automation is unnecessary engineering load for a small number of tenants.
 
-## MVP akışı
+## MVP flow
 
-1. Tenant, elindeki Excel/liste'yi sana (platform_owner) iletir.
-2. Sen, [onboarding.md](onboarding.md)'deki seed script'in bir uzantısı olarak, veriyi standart bir CSV şablonuna dönüştürüp bir import script'iyle sisteme yüklersin.
-3. Import script, her satırı `member` kaydına dönüştürür; üyelik/paket bilgisi varsa `membership` kaydı da açar.
-4. KVKK açık rızası — mevcut üyelerin verisi aktarılırken açık rıza yeniden alınmalı mı, yoksa tenant'ın kendi geçmiş rızası yeterli mi, bu [kvkk-checklist.md](kvkk-checklist.md) kapsamında hukuki onayla netleşir (bkz. [open-questions.md](../open-questions.md) madde 5).
+1. The tenant sends the Excel/list they have to you (platform_owner).
+2. As an extension of the seed script in [onboarding.md](onboarding.md), you convert the data to a standard CSV template and load it into the system with an import script.
+3. The import script converts each row into a `member` record; if there is membership/package information, it also opens a `membership` record.
+4. KVKK explicit consent — whether explicit consent must be obtained again when existing members' data is transferred, or the tenant's own past consent is sufficient, will be settled with legal approval within the scope of [kvkk-checklist.md](kvkk-checklist.md) (see [open-questions.md](../open-questions.md) item 5).
 
-## CSV şablonu (taslak)
+## CSV template (draft)
 
-Tenant'ın dolduracağı CSV **kullanıcıya gösterilen bir dosya** olduğu için başlıkları Türkçe kalır (bkz. [localization.md](localization.md) — kullanıcıya dönük içerik ile kod farklı dildedir):
+Because the CSV the tenant fills in is **a file shown to the user**, its column headers can be localized to the tenant's language (currently Turkish — see [localization.md](localization.md); user-facing content and code are in different languages). The canonical template is:
 
 ```
-ad, telefon, e-posta (opsiyonel), üyelik_başlangıç, üyelik_bitiş, paket_adı
+name, phone, email (optional), membership_start, membership_end, plan_name
 ```
 
-- Import script bu Türkçe başlıkları okurken **İngilizce DB alanlarına eşler** (`ad`→`name`, `telefon`→`phone`, `üyelik_başlangıç`→`membership.start_at` vb.) — kod içindeki değişken/alan adı yine [code-style.md](code-style.md) kuralına göre İngilizce'dir, sadece CSV'nin kendisi (kullanıcı girdisi) Türkçe.
-- Şablon [modules/_template.md](../modules/_template.md)'deki gibi her modülde küçük farklılaşabilir (örn. berber için `son_ziyaret_tarihi` eklenebilir, DB'de `last_visit_at`'a eşlenir) ama temel alanlar (`ad`/`name`, `telefon`/`phone`) tüm modüllerde ortak.
+- When the import script reads the headers, it **maps them to the English DB fields** (`name`→`name`, `phone`→`phone`, `membership_start`→`membership.start_at`, etc.) — variable/field names in code are in English per the [code-style.md](code-style.md) rule; only the CSV itself (user input) may carry localized headers.
+- The template can differ slightly per module as in [modules/_template.md](../modules/_template.md) (e.g. for barber a `last_visit_date` can be added, mapped to `last_visit_at` in the DB) but the basic fields (`name`, `phone`) are common to all modules.
 
-## Veri kalitesi kuralı
+## Data quality rule
 
-- Import sırasında telefon numarası formatı normalize edilir (05XX XXX XX XX gibi tutarlı bir formata).
-- Mükerrer kayıt kontrolü (aynı telefon numarasıyla iki kez import) — script bunu tespit edip atlar, sessizce tekrar oluşturmaz.
-- Import sonucu bir özet raporu döner: kaç kayıt eklendi, kaç kayıt hatalı/atlandı (ve neden).
+- During import, the phone number format is normalized (to a consistent format such as 05XX XXX XX XX).
+- Duplicate check (importing twice with the same phone number) — the script detects this and skips, it does not silently create it again.
+- The import returns a summary report: how many records were added, how many records were erroneous/skipped (and why).
 
-## Ne zaman self-servis'e geçilir
+## When to move to self-service
 
-[onboarding.md](onboarding.md)'deki aynı eşik (~10 tenant) burada da geçerli — tenant sayısı arttıkça platform admin panelinde (bkz. [roadmap/phases.md](../roadmap/phases.md) Faz 6) bir "CSV yükle" ekranı eklenir, tenant_admin kendi verisini kendisi yükler.
+The same threshold in [onboarding.md](onboarding.md) (~10 tenants) applies here too — as the number of tenants grows, a "Upload CSV" screen is added to the platform admin panel (see [roadmap/phases.md](../roadmap/phases.md) Phase 6), and the tenant_admin uploads their own data themselves.
 
-## Kapsam dışı (MVP'de yok)
+## Out of scope (not in the MVP)
 
-- Başka bir yazılımdan (örn. belirli bir muhasebe programından) doğrudan API entegrasyonuyla veri çekme — sadece CSV/manuel aktarım.
-- Otomatik veri temizleme/eşleştirme (fuzzy matching) — mükerrer kontrolü basit (telefon numarası birebir eşleşmesi) tutulur.
+- Pulling data directly through an API integration from other software (e.g. a specific accounting program) — only CSV/manual transfer.
+- Automatic data cleaning/matching (fuzzy matching) — the duplicate check is kept simple (an exact phone number match).
 
-## İlgili dosyalar
+## Related files
 
 - [onboarding.md](onboarding.md)
 - [kvkk-checklist.md](kvkk-checklist.md)
 - [../modules/_template.md](../modules/_template.md)
-- [tenant-offboarding.md](tenant-offboarding.md) — bu dosyanın simetriği (veri dışa aktarma)
+- [tenant-offboarding.md](tenant-offboarding.md) — the symmetric counterpart of this file (data export)

@@ -1,32 +1,32 @@
-# Hata Yönetimi (Exception Stratejisi)
+# Error Handling (Exception Strategy)
 
-[api-conventions.md](api-conventions.md) hatanın **tel üzerindeki** (wire) formatını tanımlıyor (`error.code`, `error.message`, `error.field`) ama kod içinde bir hatanın nasıl fırlatılıp bu formata dönüştüğü tanımlanmamıştı — her modül kendi tarzında exception fırlatırsa format tutarlılığı garanti edilemez.
+[api-conventions.md](api-conventions.md) defines the error format **on the wire** (`error.code`, `error.message`, `error.field`) but how an error is thrown in code and converted to this format had not been defined — if each module throws exceptions in its own style, format consistency cannot be guaranteed.
 
-## Exception hiyerarşisi
+## Exception hierarchy
 
 ```
-DomainException (abstract, core'da tanımlı)
+DomainException (abstract, defined in core)
  ├─ NotFoundException           → HTTP 404
- ├─ ValidationException         → HTTP 400 (field doluysa)
+ ├─ ValidationException         → HTTP 400 (if field is set)
  ├─ UnauthorizedException       → HTTP 401
- ├─ ForbiddenException          → HTTP 403 (örn. tenant izolasyon ihlali denemesi)
- ├─ ConflictException           → HTTP 409 (örn. randevu çakışması)
- └─ BusinessRuleException       → HTTP 422 (örn. üyelik süresi dolmuş → MEMBERSHIP_EXPIRED)
+ ├─ ForbiddenException          → HTTP 403 (e.g. an attempted tenant isolation violation)
+ ├─ ConflictException           → HTTP 409 (e.g. an appointment conflict)
+ └─ BusinessRuleException       → HTTP 422 (e.g. membership expired → MEMBERSHIP_EXPIRED)
 ```
 
-- Tüm modüller **sadece** bu hiyerarşideki tipleri fırlatır, kendi özel exception tipini tanımlamaz — yeni bir hata durumu için mevcut tiplerden biri kullanılır, `code` alanıyla ayrıştırılır (örn. `BusinessRuleException("MEMBERSHIP_EXPIRED", "Üyelik süresi dolmuş.")`).
-- `code` değerleri modül prefix'i taşır (`FITNESS_QR_EXPIRED`, `BERBER_SLOT_TAKEN`) — [glossary.md](../glossary.md)'deki terimlerle tutarlı isimlendirilir.
+- All modules throw **only** types in this hierarchy and do not define their own custom exception types — for a new error case one of the existing types is used and distinguished by the `code` field (e.g. `BusinessRuleException("MEMBERSHIP_EXPIRED", "The membership has expired.")`).
+- `code` values carry a module prefix (`FITNESS_QR_EXPIRED`, `BERBER_SLOT_TAKEN`) — named consistently with the terms in [glossary.md](../glossary.md).
 
-## Merkezi dönüştürme
+## Central conversion
 
-`core`'da tek bir `@ControllerAdvice` (global exception handler) bu hiyerarşideki her tipi yakalar, [api-conventions.md](api-conventions.md)'deki JSON zarfına çevirir. Hiçbir controller kendi try/catch'iyle hata formatlamaz — bu, her endpoint'in aynı formatta hata döndürmesini merkezi olarak garanti eder.
+A single `@ControllerAdvice` (global exception handler) in `core` catches every type in this hierarchy and converts it to the JSON envelope in [api-conventions.md](api-conventions.md). No controller formats errors with its own try/catch — this centrally guarantees that every endpoint returns errors in the same format.
 
-## Beklenmeyen hatalar
+## Unexpected errors
 
-Yukarıdaki hiyerarşiye girmeyen (öngörülmemiş) her exception, `@ControllerAdvice` tarafından `INTERNAL_ERROR` koduyla HTTP 500'e çevrilir ve otomatik olarak [observability.md](../infra/observability.md)'deki hata izleme sistemine (Sentry) raporlanır — kullanıcıya asla stack trace veya iç detay sızdırılmaz.
+Every exception that does not fall into the hierarchy above (an unforeseen one) is converted by the `@ControllerAdvice` to HTTP 500 with the `INTERNAL_ERROR` code and is automatically reported to the error tracking system (Sentry) in [observability.md](../infra/observability.md) — stack traces or internal details are never leaked to the user.
 
-## İlgili dosyalar
+## Related files
 
-- [api-conventions.md](api-conventions.md) — wire formatı
-- [../infra/observability.md](../infra/observability.md) — beklenmeyen hataların izlenmesi
-- [code-review-checklist.md](../workflow/code-review-checklist.md) — review sırasında bu hiyerarşiye uyulup uyulmadığının kontrolü
+- [api-conventions.md](api-conventions.md) — the wire format
+- [../infra/observability.md](../infra/observability.md) — tracking unexpected errors
+- [code-review-checklist.md](../workflow/code-review-checklist.md) — checking during review whether this hierarchy is followed

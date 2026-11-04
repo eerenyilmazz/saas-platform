@@ -1,30 +1,30 @@
-# Test Stratejisi
+# Testing Strategy
 
-Tester agent'ın ne çalıştırdığı, hangi seviyede test beklendiği burada tanımlanır — bu netleşmeden agent pipeline'daki "test geçti/geçmedi" kararı anlamsız kalır.
+What the tester agent runs and what level of testing is expected is defined here — without this being settled, the "tests passed/failed" decision in the agent pipeline would be meaningless.
 
-## Test piramidi
+## Test pyramid
 
-| Seviye | Kapsam | Araç | Beklenti |
+| Level | Scope | Tooling | Expectation |
 |---|---|---|---|
-| Birim testi | Domain mantığı (üyelik hesaplama, QR token geçerliliği, randevu çakışma kontrolü) | JUnit 5 | Her modülde zorunlu, özellikle iş kuralı içeren sınıflarda |
-| Entegrasyon testi | API endpoint'leri, gerçek DB davranışı | Spring Boot Test + Testcontainers (gerçek PostgreSQL) | Her yeni endpoint için en az bir happy-path + bir hata senaryosu |
-| Tenant izolasyon testi | Bir tenant'ın başka tenant'ın verisine erişemediği | Entegrasyon testi, `core` seviyesinde | **Zorunlu gate** — her PR'da çalışır, geçmezse merge edilmez |
-| E2E testi | Kritik kullanıcı akışları (QR check-in, randevu oluşturma) | Az sayıda, yavaş çalıştıkları için seçici kullanılır | Sadece "para/erişim" içeren akışlarda |
+| Unit test | Domain logic (membership calculation, QR token validity, appointment conflict check) | JUnit 5 | Mandatory in every module, especially for classes containing business rules |
+| Integration test | API endpoints, real DB behavior | Spring Boot Test + Testcontainers (real PostgreSQL) | At least one happy path + one error scenario for every new endpoint |
+| Tenant isolation test | One tenant cannot access another tenant's data | Integration test, at `core` level | **Mandatory gate** — runs on every PR, the PR is not merged if it fails |
+| E2E test | Critical user flows (QR check-in, appointment creation) | Few in number, used selectively because they are slow | Only for flows involving "money/access" |
 
-## Coverage beklentisi
+## Coverage expectation
 
-- `core` (auth, tenant, membership, billing): kritik olduğu için yüksek coverage hedeflenir, özellikle tenant izolasyonu ve ödeme/üyelik hesaplama mantığı.
-- `modules/*`: asgari olarak her endpoint'in happy-path testi zorunlu, kapsamlı coverage zorunlu değil — MVP hızını yavaşlatmamak için.
-- Sayısal bir yüzde hedefi (örn. "%80 coverage") koymuyoruz — coverage yüzdesi tek başına kalite göstergesi değil, kritik yol testlerinin var olması önceliklidir.
+- `core` (auth, tenant, membership, billing): high coverage is targeted because it is critical, especially for tenant isolation and payment/membership calculation logic.
+- `modules/*`: at a minimum, a happy-path test for every endpoint is mandatory; comprehensive coverage is not required — so as not to slow down MVP speed.
+- We do not set a numeric percentage target (e.g. "80% coverage") — a coverage percentage alone is not a quality indicator; the existence of critical-path tests takes priority.
 
-## Agent pipeline ile ilişki
+## Relationship with the agent pipeline
 
-[workflow/agent-pipeline.md](agent-pipeline.md)'deki `tester` agent'ı şu sırayla çalışır:
-1. Birim testleri çalıştır
-2. Entegrasyon testlerini çalıştır (Testcontainers ile gerçek DB ayağa kaldırır)
-3. Tenant izolasyon testi geçmediyse PR'ı otomatik reddet, insan onayına bile gitmesin
-4. Sonucu PR'a rapor olarak yaz
+The `tester` agent in [workflow/agent-pipeline.md](agent-pipeline.md) runs in this order:
+1. Run unit tests
+2. Run integration tests (spins up a real DB with Testcontainers)
+3. If the tenant isolation test fails, automatically reject the PR — it should not even go to human approval
+4. Write the result to the PR as a report
 
-## İlgili dosyalar
+## Related files
 
-- [performance-testing.md](performance-testing.md) — bu piramidin kapsamadığı yük/performans testi (doğruluk değil, ölçek sorusu)
+- [performance-testing.md](performance-testing.md) — load/performance testing that this pyramid does not cover (a scale question, not correctness)

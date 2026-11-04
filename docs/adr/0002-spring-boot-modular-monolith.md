@@ -1,19 +1,19 @@
-# ADR 0002: Spring Boot ile modüler monolit
+# ADR 0002: Modular monolith with Spring Boot
 
-**Durum:** Kabul edildi
-**Tarih:** 2026-07-17
+**Status:** Accepted
+**Date:** 2026-07-17
 
-## Bağlam
+## Context
 
-Backend dili/framework kararı gerekiyordu. Alternatifler: Node/NestJS, Python/Django, Spring Boot. Ayrıca mikroservis mi modüler monolit mi sorusu vardı.
+We needed to decide on the backend language/framework. Alternatives: Node/NestJS, Python/Django, Spring Boot. There was also the question of microservices versus a modular monolith.
 
-## Karar
+## Decision
 
-Spring Boot (Java 21), modüler monolit olarak (mikroservis değil) geliştirilecek.
+Build on Spring Boot (Java 21) as a modular monolith (not microservices).
 
-## Sonuç
+## Consequences
 
-- Spring Security ile rol/yetki yönetimi, Spring Data JPA ile DB katmanı hazır ve olgun.
-- Modüler monolit, erken aşamada mikroservis karmaşıklığından (dağıtık sistem, network hataları, servisler arası iletişim) kaçınır — paket sınırları (`core`/`modules/*`) ile mantıksal ayrım zaten sağlanıyor.
-- Dezavantaj: Node/Python'a göre ilk MVP çıkışı biraz daha yavaş olabilir; bu, uzun vadeli sağlamlık için kabul edilebilir bir bedel olarak değerlendirildi.
-- Gözden geçirme koşulu: bir modülün trafiği/ölçek ihtiyacı diğerlerinden çok farklılaşırsa, o modül ayrı bir servise çıkarılabilir (paket sınırları zaten bunu kolaylaştırıyor).
+- Role/permission management with Spring Security and the DB layer with Spring Data JPA are ready-made and mature.
+- A modular monolith avoids the complexity of microservices at this early stage (distributed systems, network failures, inter-service communication) — the package boundaries (`core`/`modules/*`) already provide the logical separation.
+- Downside: the first MVP may ship slightly slower than with Node/Python; this was judged an acceptable price for long-term robustness.
+- Revisit condition: if one module's traffic/scale needs diverge sharply from the others, that module can be extracted into a separate service (the package boundaries already make this easier).

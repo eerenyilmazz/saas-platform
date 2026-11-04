@@ -1,33 +1,33 @@
-# Domain Event Kataloğu
+# Domain Event Catalog
 
-[notifications.md](notifications.md) ve [external-integration-resilience.md](external-integration-resilience.md) olay tabanlı bir tasarımı (`MembershipExpiringEvent` gibi) varsayıyordu ama olay isimlerinin **hepsinin toplandığı tek bir yer** yoktu — bir agent yeni bir olaya ihtiyaç duyduğunda kendi ismini uydurmasın diye, önce burası kontrol edilir.
+[notifications.md](notifications.md) and [external-integration-resilience.md](external-integration-resilience.md) assumed an event-based design (such as `MembershipExpiringEvent`) but there was no **single place where all event names are collected** — so that an agent does not invent its own name when it needs a new event, this is checked first.
 
-## İsimlendirme kuralı
+## Naming rule
 
-`<Konu><GeçmişZamanFiil>` — her zaman geçmiş zaman (olay zaten olmuş bir şeyi temsil eder), İngilizce, [glossary.md](../glossary.md)'deki terimlerle tutarlı.
+`<Subject><PastTenseVerb>` — always past tense (an event represents something that has already happened), in English, consistent with the terms in [glossary.md](../glossary.md).
 
-## Mevcut olaylar
+## Existing events
 
-| Olay | Ne zaman yayınlanır | Kim dinler |
+| Event | When it is published | Who listens |
 |---|---|---|
-| `MemberCreated` | Yeni bir `member` kaydı oluştuğunda | `core.audit` |
-| `MembershipExpiringEvent` | Üyelik bitişine N gün kala (bkz. [notifications.md](notifications.md)) | `core.notifications` |
-| `MembershipExpiredEvent` | Üyelik süresi dolduğunda | `core.notifications`, ilgili modülün erişim kontrolü |
-| `MembershipFrozenEvent` | Üyelik donduruldu | `core.audit` |
-| `AppointmentCreatedEvent` | Yeni randevu (berber) | `core.notifications` (onay mesajı) |
-| `AppointmentReminderEvent` | Randevuya N saat kala | `core.notifications` |
-| `AppointmentCancelledEvent` | Randevu iptal edildi | `core.notifications`, `core.audit` |
-| `CheckinFailedEvent` | QR check-in reddedildi (fitness) | `core.audit`, [observability.md](../infra/observability.md) (anormal oran izleme) |
-| `PaymentReceivedEvent` | `tenant_payment` kaydı oluştu | `core.audit` |
-| `SubscriptionExpiredEvent` | `platform_subscription` gecikti/iptal oldu | `platform` (tenant erişimini kısıtlama tetikleyicisi) |
+| `MemberCreated` | When a new `member` record is created | `core.audit` |
+| `MembershipExpiringEvent` | N days before a membership ends (see [notifications.md](notifications.md)) | `core.notifications` |
+| `MembershipExpiredEvent` | When a membership expires | `core.notifications`, the relevant module's access control |
+| `MembershipFrozenEvent` | A membership was frozen | `core.audit` |
+| `AppointmentCreatedEvent` | A new appointment (barber) | `core.notifications` (confirmation message) |
+| `AppointmentReminderEvent` | N hours before an appointment | `core.notifications` |
+| `AppointmentCancelledEvent` | An appointment was cancelled | `core.notifications`, `core.audit` |
+| `CheckinFailedEvent` | QR check-in was rejected (fitness) | `core.audit`, [observability.md](../infra/observability.md) (abnormal rate monitoring) |
+| `PaymentReceivedEvent` | A `tenant_payment` record was created | `core.audit` |
+| `SubscriptionExpiredEvent` | A `platform_subscription` became overdue/cancelled | `platform` (the trigger for restricting tenant access) |
 
-## Yeni bir olay eklerken kural
+## Rule when adding a new event
 
-1. Önce bu tabloda benzer bir olay olup olmadığına bakılır — varsa o kullanılır, isim tekrar icat edilmez.
-2. Yoksa yukarıdaki isimlendirme kuralına göre yeni bir isim türetilir ve **bu tabloya eklenir** (kodla aynı PR'da).
-3. Bir olay, sadece onu yayınlayan modülün paketinde tanımlanır (`fitness` bir olay yayınlıyorsa `com.saas.modules.fitness.event` altında) ama bu katalogdaki kayıt sayesinde başka modüller/agent'lar o olayın var olduğunu bilir — [bounded-context-matrix.md](bounded-context-matrix.md)'deki "modüller birbirinin sınıfını import edemez" kuralı burada da geçerli: bir modül başka bir modülün olayını **dinleyemez**, olaylar sadece `core` tarafından dinlenir ve gerekirse `core` üzerinden başka bir modüle yansıtılır.
+1. First check whether a similar event exists in this table — if it does, that one is used and the name is not invented again.
+2. If not, a new name is derived according to the naming rule above and **added to this table** (in the same PR as the code).
+3. An event is defined only in the package of the module that publishes it (if `fitness` publishes an event, under `com.saas.modules.fitness.event`), but thanks to the entry in this catalog other modules/agents know the event exists — the rule "modules cannot import each other's classes" in [bounded-context-matrix.md](bounded-context-matrix.md) applies here too: a module **cannot listen to** another module's events; events are listened to only by `core` and, if needed, reflected to another module through `core`.
 
-## İlgili dosyalar
+## Related files
 
 - [notifications.md](notifications.md)
 - [audit-log.md](audit-log.md)

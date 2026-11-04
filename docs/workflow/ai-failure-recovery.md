@@ -1,44 +1,44 @@
-# AI Hata Kurtarma Prosedürü
+# AI Failure Recovery Procedure
 
-[pr-and-definition-of-done.md](pr-and-definition-of-done.md)'daki "Max Iteration = 3" kuralı bir PR'ın **merge olmadan önce** takılıp kalmasını yönetiyor. Bu doküman farklı bir senaryo: **hatalı bir değişiklik zaten merge oldu** — planner yanlış anladı, coder yanlış yazdı, reviewer kaçırdı, test bir şekilde geçti. Şimdi ne olacağı tanımlı değildi.
+The "Max Iteration = 3" rule in [pr-and-definition-of-done.md](pr-and-definition-of-done.md) governs a PR getting stuck **before it is merged**. This document covers a different scenario: **a faulty change has already been merged** — the planner misunderstood, the coder wrote it wrong, the reviewer missed it, the tests somehow passed. What happens now was not defined.
 
-## Neden bu insan hata kurtarmasından farklı
+## Why this differs from human error recovery
 
-Klasik bir "bug fix" issue'su yeterli değil çünkü asıl soru kodun düzeltilmesi değil: **pipeline'ın neden bu hatayı yakalayamadığı**. Sadece kodu düzeltip geçersen, aynı hata sınıfı bir sonraki agent tarafından tekrar üretilebilir — kök neden dokümantasyonda/kuralda bir boşluk olabilir.
+A classic "bug fix" issue is not enough, because the real question is not fixing the code: it is **why the pipeline failed to catch this error**. If you only fix the code and move on, the same class of error can be produced again by the next agent — the root cause may be a gap in the documentation/rules.
 
-## Prosedür
+## Procedure
 
 ```
-1) Tespit
-   → Hata nasıl fark edildi (production log, kullanıcı şikayeti, sonraki bir PR'da fark edildi)
+1) Detection
+   → How the error was noticed (production log, user complaint, noticed in a later PR)
 
-2) Geri alma (rollback)
-   → git revert ile hızlıca geri alınır (bkz. branch-strategy.md main koruması)
-   → Bu adım TARTIŞMASIZ ilk yapılan şey, kök neden analizini beklemez
+2) Rollback
+   → Quickly reverted with git revert (see the main protection in branch-strategy.md)
+   → This step is UNQUESTIONABLY the first thing done; it does not wait for root cause analysis
 
-3) Kök neden sınıflandırması — dördünden biri:
-   a) Spec eksikti (hiçbir dokümanda bu kural yoktu)
-   b) Spec vardı ama agent'a context hydration'da verilmedi (issue-management.md'deki liste eksikti)
-   c) Spec vardı, agent okudu ama yanlış yorumladı (spec belirsizdi)
-   d) Spec ve context doğruydu, agent basitçe hata yaptı (rastgele hata, sistemik değil)
+3) Root cause classification — one of four:
+   a) The spec was missing (no document had this rule)
+   b) The spec existed but was not given to the agent in context hydration (the list in issue-management.md was incomplete)
+   c) The spec existed, the agent read it but misinterpreted it (the spec was ambiguous)
+   d) The spec and context were correct, the agent simply made a mistake (a random error, not systemic)
 
-4) Duruma göre aksiyon
-   a) → yeni bir domain-invariants.md / architecture-constraints.md maddesi eklenir
-   b) → docs-dependency-map.md güncellenir, o issue tipi için "İlgili dokümanlar" listesi düzeltilir
-   c) → ilgili spec dosyası netleştirilir (belirsiz cümle, somut örnekle değiştirilir)
-   d) → aksiyon gerekmez, ama tekrar ederse (aynı agent/görev tipinde) (c)'ye dönülüp incelenir
+4) Action depending on the case
+   a) → a new domain-invariants.md / architecture-constraints.md item is added
+   b) → docs-dependency-map.md is updated, the "Related documents" list for that issue type is corrected
+   c) → the relevant spec file is clarified (the ambiguous sentence is replaced with a concrete example)
+   d) → no action needed, but if it recurs (same agent/task type), go back to (c) and investigate
 
-5) Kayıt
-   → (a) veya (c) durumunda değişiklik bir ADR'a bağlanır ("bu kural şu incident'tan sonra eklendi")
-   → (b) durumunda docs-dependency-map.md'nin kendisi güncellenmiş olur, ayrı kayıt gerekmez
+5) Record
+   → In case (a) or (c), the change is tied to an ADR ("this rule was added after this incident")
+   → In case (b), docs-dependency-map.md itself will have been updated, no separate record needed
 ```
 
-## "Sadece kodu düzelt" ile karışmaması gereken durum
+## What should not be confused with "just fix the code"
 
-Eğer hata sadece (d) kategorisindeyse (agent'ın tek seferlik, sistemik olmayan hatası), bu prosedürün tamamı işletilmez — normal bir `fix/` branch'i yeterli. Bu prosedür özellikle **(a), (b), (c)** durumları için var: hatanın kaynağı koddan önce dokümantasyon/süreçteyse.
+If the error falls only into category (d) (a one-off, non-systemic agent error), the whole of this procedure is not run — a normal `fix/` branch is enough. This procedure exists especially for cases **(a), (b), (c)**: where the source of the error lies in documentation/process before it lies in code.
 
-## İlgili dosyalar
+## Related files
 
-- [pr-and-definition-of-done.md](pr-and-definition-of-done.md) — merge öncesi döngü limiti (bu dosyanın önlediği durum)
-- [../docs-versioning.md](../docs-versioning.md) — context drift'in (b) kategorisiyle ilişkisi
-- [../adr/_template.md](../adr/_template.md) — kayıt altına alma
+- [pr-and-definition-of-done.md](pr-and-definition-of-done.md) — the pre-merge loop limit (the situation this file prevents)
+- [../docs-versioning.md](../docs-versioning.md) — how context drift relates to category (b)
+- [../adr/_template.md](../adr/_template.md) — recording

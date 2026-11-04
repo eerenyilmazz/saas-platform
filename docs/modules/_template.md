@@ -1,44 +1,44 @@
-# Modül: &lt;modül_adı&gt;
+# Module: &lt;module_name&gt;
 
-> Bu dosya bir şablondur. Yeni bir dikey (örn. inşaat, kuaför, oto yıkama) eklerken bu dosyayı `docs/modules/<modül_adı>.md` olarak kopyala, başlıkları doldur, bu satırı sil.
+> This file is a template. When adding a new vertical (e.g. construction, hair salon, car wash), copy this file to `docs/modules/<module_name>.md`, fill in the headings, and delete this line.
 
-**Paket:** `com.saas.modules.<modül_adı>.*`
-**Bağımlılık:** `core` (auth, tenant, membership, billing) — başka modüle bağımlılık yasak
-**Öncelik:** &lt;bu modül hangi fazda geliştirilecek — bkz. [roadmap/phases.md](../roadmap/phases.md)&gt;
+**Package:** `com.saas.modules.<module_name>.*`
+**Dependency:** `core` (auth, tenant, membership, billing) — dependency on any other module is forbidden
+**Priority:** &lt;which phase this module will be developed in — see [roadmap/phases.md](../roadmap/phases.md)&gt;
 
-## Sorumluluklar
+## Responsibilities
 
-- Bu modülün çözdüğü **spesifik** iş problemi ne? (genel değil, bu sektöre özgü olanı yaz)
-- Hangi işlemler bu modüle özel, `core`'da olmayan?
+- What **specific** business problem does this module solve? (not a general one, write what is specific to this industry)
+- Which operations are specific to this module and not in `core`?
 
-## Akış (varsa)
+## Flow (if any)
 
-Modülün ana işlem akışını diyagram/adım listesi olarak yaz. Örnek format:
+Write the module's main process flow as a diagram/list of steps. Example format:
 
 ```
-[Girdi] → [İşlem] → [core'daki hangi kontrol] → [Sonuç]
+[Input] → [Operation] → [which check in core] → [Result]
 ```
 
-## Veri modeli (taslak)
+## Data model (draft)
 
-- `<tablo_adı>` — id, tenant_id, ... (her tabloda tenant_id zorunlu)
+- `<table_name>` — id, tenant_id, ... (tenant_id is mandatory on every table)
 
-## core ile ilişki
+## Relationship with core
 
-- Bu modül `core.membership`'i nasıl kullanıyor? (üyelik/paket kavramı bu sektörde neye karşılık geliyor) — **eğer bu sektörde üyelik kavramı hiç yoksa** (örn. sipariş bazlı çalışan bir dikey), `membership`'i zorlama, modülün kendi domain nesnesini (`order`, `reservation` vb.) tanımla.
-- Bu modül `core.billing`'i nasıl kullanıyor? `tenant_payment` tablosu `source_type`/`source_id` alanlarıyla genel tutulmuştur (bkz. [core.md](core.md)) — üyelik/randevu olmasa bile modülün kendi domain nesnesi buraya `source_type` olarak eklenebilir, `core`'da migration gerekmez.
-- Yeni bir `core` değişikliği gerekiyor mu? Gerekiyorsa bunu ayrı bir görev/PR olarak core ekibine/agent'ına aç, bu modülün PR'ına karıştırma.
+- How does this module use `core.membership`? (what the membership/package concept corresponds to in this industry) — **if this industry has no membership concept at all** (e.g. an order-based vertical), do not force `membership`; define the module's own domain object (`order`, `reservation`, etc.).
+- How does this module use `core.billing`? The `tenant_payment` table is kept generic through its `source_type`/`source_id` fields (see [core.md](core.md)) — even without a membership/appointment, the module's own domain object can be added here as a `source_type`, with no migration in `core`.
+- Is a new `core` change needed? If so, open it as a separate task/PR for the core team/agent, and do not mix it into this module's PR.
 
-## Diğer modüllerle ortak nokta (varsa)
+## Commonalities with other modules (if any)
 
-Benzer iş modeline sahip başka modül var mı (örn. randevu+üyelik modeli fitness ve berber'de ortak)? Kod tekrarından kaçınmak için bu ortaklığı burada not düş, gerekirse ortak mantığı `core`'a taşımayı değerlendir.
+Is there another module with a similar business model (e.g. the appointment+membership model is shared by fitness and barber)? To avoid code duplication, note this commonality here, and consider moving the shared logic to `core` if needed.
 
-## Kapsam dışı
+## Out of scope
 
-- Başka modüle ait olan ve burada tekrar edilmeyecek şeyleri açıkça listele.
+- Explicitly list things that belong to another module and will not be repeated here.
 
-## Doldurmadan önce oku
+## Read before filling in
 
-- [glossary.md](../glossary.md) — terim isimleri burada sabit, yeni bir isim icat etme (örn. "müşteri" değil "member" kullan)
-- [platform/code-style.md](../platform/code-style.md) — sınıf/tablo isimlendirme kuralları
-- Doldurduktan sonra [data-model-overview.md](../data-model-overview.md)'ye bu modülün tablolarını ekle (bkz. [workflow/new-module-checklist.md](../workflow/new-module-checklist.md))
+- [glossary.md](../glossary.md) — term names are fixed here, do not invent a new name (e.g. use "member", not "customer")
+- [platform/code-style.md](../platform/code-style.md) — class/table naming rules
+- After filling in, add this module's tables to [data-model-overview.md](../data-model-overview.md) (see [workflow/new-module-checklist.md](../workflow/new-module-checklist.md))

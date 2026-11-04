@@ -1,41 +1,41 @@
-# Bounded Context Matrisi
+# Bounded Context Matrix
 
-[repo-structure.md](../repo-structure.md) bağımlılık kuralını prosa olarak anlatıyordu ("modüller core'a bağımlı, birbirine değil"). Bu dosya aynı kuralı **taranabilir bir tablo** olarak verir — modül sayısı arttıkça (fitness, berber, restoran, oto yıkama, kuaför...) prosa okumak yerine bu tabloya bakmak yeterli olsun diye.
+[repo-structure.md](../repo-structure.md) described the dependency rule in prose ("modules depend on core, not on each other"). This file gives the same rule as a **scannable table** — so that as the number of modules grows (fitness, barber, restaurant, car wash, hair salon...), it is enough to look at this table instead of reading prose.
 
-## Erişim matrisi
+## Access matrix
 
 | | core | platform | fitness | berber |
 |---|---|---|---|---|
-| **core** görebilir mi | — | ❌ | ❌ | ❌ |
-| **platform** görebilir mi | ✅ | — | ❌ | ❌ |
-| **fitness** görebilir mi | ✅ | ❌ | — | ❌ |
-| **berber** görebilir mi | ✅ | ❌ | ❌ | — |
+| **core** can see | — | ❌ | ❌ | ❌ |
+| **platform** can see | ✅ | — | ❌ | ❌ |
+| **fitness** can see | ✅ | ❌ | — | ❌ |
+| **berber** can see | ✅ | ❌ | ❌ | — |
 
-Okuma yönü: satır, sütunu **görebilir mi**. Örnek: "fitness satırı, core sütunu = ✅" → fitness, core'u import edebilir. "fitness satırı, berber sütunu = ❌" → fitness, berber'i asla import edemez.
+Reading direction: whether the row **can see** the column. Example: "fitness row, core column = ✅" → fitness can import core. "fitness row, berber column = ❌" → fitness can never import berber.
 
-**Yeni bir modül eklendiğinde** (bkz. [new-module-checklist.md](../workflow/new-module-checklist.md)) bu tabloya yeni bir satır/sütun eklenir — yeni modülün `core` sütunu her zaman ✅, diğer tüm modül sütunları her zaman ❌ olur. Bu hiç değişmez, tartışmaya açılmaz.
+**When a new module is added** (see [new-module-checklist.md](../workflow/new-module-checklist.md)), a new row/column is added to this table — the new module's `core` column is always ✅, and all other module columns are always ❌. This never changes and is not open to debate.
 
-## Aynı isimli, farklı entity kuralı
+## Same name, different entity rule
 
-`fitness` ve `berber` ikisi de bir "randevu" kavramına sahip ama bunlar **asla aynı entity olmaya zorlanmaz**:
+`fitness` and `berber` both have an "appointment" concept but they are **never forced to be the same entity**:
 
-- `fitness.training_appointment` ve `berber.appointment` iki ayrı tablo, iki ayrı Java sınıfı.
-- İsimlerinin benzer olması ("appointment") bir tesadüf, bir paylaşım zorunluluğu değil — [modules/_template.md](../modules/_template.md)'deki "Diğer modüllerle ortak nokta" bölümü bunu **not düşmek** için var, otomatik birleştirmek için değil.
-- Bir alan/kavram üçüncü bir modülde de tekrar ederse (fitness + berber + restoran'ın hepsi randevu alıyorsa), o zaman `core`'a taşımak değerlendirilir — ama bu **üçüncü tekrardan önce yapılmaz** (bkz. [modules/_template.md](../modules/_template.md)'deki erken soyutlama uyarısı).
+- `fitness.training_appointment` and `berber.appointment` are two separate tables, two separate Java classes.
+- The similarity of their names ("appointment") is a coincidence, not an obligation to share — the "Commonalities with other modules" section in [modules/_template.md](../modules/_template.md) exists to **make a note** of this, not to merge automatically.
+- If a field/concept repeats in a third module too (if fitness + barber + restaurant all take appointments), then moving it to `core` is considered — but this is **not done before the third repetition** (see the early abstraction warning in [modules/_template.md](../modules/_template.md)).
 
-## Paket sahipliği (özet)
+## Package ownership (summary)
 
-| Modül | Paket öneki | Kim değiştirebilir |
+| Module | Package prefix | Who can change it |
 |---|---|---|
-| `core` | `com.saas.core.*` | Herhangi bir agent, ama değişiklik ayrı bir issue/PR olarak açılır (bkz. [new-module-checklist.md](../workflow/new-module-checklist.md)) |
-| `platform` | `com.saas.platform.*` | Sadece platform'a atanmış görevler — modül geliştiren bir agent buraya asla dokunmaz |
-| `modules/fitness` | `com.saas.modules.fitness.*` | Fitness görevine atanmış agent |
-| `modules/berber` | `com.saas.modules.berber.*` | Berber görevine atanmış agent |
+| `core` | `com.saas.core.*` | Any agent, but the change is opened as a separate issue/PR (see [new-module-checklist.md](../workflow/new-module-checklist.md)) |
+| `platform` | `com.saas.platform.*` | Only tasks assigned to the platform — an agent developing a module never touches this |
+| `modules/fitness` | `com.saas.modules.fitness.*` | The agent assigned to the fitness task |
+| `modules/berber` | `com.saas.modules.berber.*` | The agent assigned to the barber task |
 
-Bu tablo, "kim sahip" kavramını bir insan takımı değil, **hangi görev/issue hangi pakete dokunma izni veriyor** anlamında kullanır — [issue-management.md](../workflow/issue-management.md)'deki `module:` etiketiyle birebir eşleşir.
+This table uses the concept of "who owns" not as a human team, but in the sense of **which task/issue grants permission to touch which package** — it matches the `module:` label in [issue-management.md](../workflow/issue-management.md) one to one.
 
-## İlgili dosyalar
+## Related files
 
-- [../repo-structure.md](../repo-structure.md) — bu matrisin dayandığı prosa kural
-- [architecture-constraints.md](architecture-constraints.md) — bu matrisin ihlalinin nasıl engellendiği (ArchUnit)
+- [../repo-structure.md](../repo-structure.md) — the prose rule this matrix is based on
+- [architecture-constraints.md](architecture-constraints.md) — how violating this matrix is prevented (ArchUnit)
 - [../workflow/new-module-checklist.md](../workflow/new-module-checklist.md)

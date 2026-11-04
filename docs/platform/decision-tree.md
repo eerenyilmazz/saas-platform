@@ -1,57 +1,57 @@
-# Karar Ağacı — Bu Yeni Şey Nereye Ait?
+# Decision Tree — Where Does This New Thing Belong?
 
-Yeni bir ihtiyaç geldiğinde ("randevu hatırlatma mesajına özel bir seçenek eklensin", "yeni bir sektör desteklensin" gibi) aynı problem için birden fazla makul çözüm var olabilir — bir agent bunlardan rastgele birini seçerse, aynı tür ihtiyaçlar zamanla tutarsız şekillerde çözülür. Bu karar ağacı, sırayla sorulacak sorularla doğru yeri tek bir cevaba indirger.
+When a new need arises (such as "add a special option to the appointment reminder message", "support a new industry"), more than one reasonable solution may exist for the same problem — if an agent picks one at random, similar needs get solved in inconsistent ways over time. This decision tree reduces the right place to a single answer through questions asked in order.
 
-## Karar akışı
+## Decision flow
 
 ```
-Yeni ihtiyaç geldi
+A new need has arrived
         │
         ▼
-1) Bu, TÜM tenant'larda/modüllerde aynı şekilde mi çalışacak?
+1) Will this work the same way in ALL tenants/modules?
         │
    ┌────┴────┐
-  EVET      HAYIR
+  YES        NO
    │          │
    ▼          ▼
-"core'a     2) Bu, yepyeni bir sektöre mi (dikey) ait,
- ekle"          yoksa var olan bir modülün bir parçası mı?
+"add to    2) Does it belong to a brand-new industry (vertical),
+ core"         or is it part of an existing module?
    │                  │
    │           ┌──────┴──────┐
-   │         YENİ SEKTÖR   VAR OLAN MODÜLÜN PARÇASI
+   │       NEW INDUSTRY   PART OF AN EXISTING MODULE
    │            │                  │
    │            ▼                  ▼
-   │      "new-module-       3) Bu, tenant'tan tenant'a
-   │       checklist.md'yi      açılıp kapanabilmeli mi
-   │       izleyerek yeni       (bazı tenant ister,
-   │       modül aç"            bazısı istemez)?
+   │      "open a new        3) Should it be switchable on/off
+   │       module following     from tenant to tenant
+   │       new-module-          (some tenants want it,
+   │       checklist.md"        some do not)?
    │                                  │
    │                          ┌───────┴───────┐
-   │                        EVET             HAYIR
+   │                         YES              NO
    │                          │                │
    │                          ▼                ▼
-   │                  "feature flag,      "modülün kendi
-   │                   tenant.settings     sabit davranışı,
-   │                   altına ekle"        config'e gerek yok"
+   │                  "feature flag,      "the module's own
+   │                   add under          fixed behavior,
+   │                   tenant.settings"   no config needed"
 ```
 
-## Ayrım kriterleri (tablo formunda)
+## Distinguishing criteria (in table form)
 
-| Soru | Cevap → Yer |
+| Question | Answer → Place |
 |---|---|
-| Auth, tenant izolasyonu, üyelik, ödeme, bildirim gibi **her sektörde aynı** bir ihtiyaç mı? | `core` |
-| Belirli bir sektöre özgü, o sektörün iş kuralı mı? | İlgili `modules/<ad>` |
-| Bambaşka bir sektör mü (örn. inşaat, restoran)? | Yeni modül — [new-module-checklist.md](../workflow/new-module-checklist.md) |
-| Aynı modül içinde, bazı tenant'lar açık bazıları kapalı isteyebilir mi? | Feature flag (`tenant.settings.modules.<ad>.<özellik>`) — bkz. [tenant-model.md](tenant-model.md) |
-| Tüm tenant'larda sabit ama ortam/deploy'a göre değişebilir mi (örn. SMS sağlayıcı API anahtarı)? | Config/environment variable — bkz. [environments.md](../infra/environments.md) |
-| Senin (platform_owner) kendi işletmen için mi, tenant'lar için mi? | `platform` katmanı |
+| Is it a need that is **the same in every industry**, such as auth, tenant isolation, membership, payments, notifications? | `core` |
+| Is it a business rule specific to a particular industry? | The relevant `modules/<name>` |
+| Is it a completely different industry (e.g. construction, restaurant)? | A new module — [new-module-checklist.md](../workflow/new-module-checklist.md) |
+| Within the same module, might some tenants want it on and others off? | Feature flag (`tenant.settings.modules.<name>.<feature>`) — see [tenant-model.md](tenant-model.md) |
+| Is it fixed across all tenants but may vary by environment/deploy (e.g. the SMS provider API key)? | Config/environment variable — see [environments.md](../infra/environments.md) |
+| Is it for your own (platform_owner) business, or for the tenants? | The `platform` layer |
 
-## Belirsiz kalan durumlar
+## Cases that remain ambiguous
 
-Yukarıdaki ağaç iki farklı dala eşit olasılıkla düşen bir durum üretirse (örn. "hem yeni sektöre hem var olan modüle benziyor"), bu bir [ADR](../adr/_template.md) konusu olur — karar tek bir agent'ın kendi başına vereceği bir şey değil, gerekçesiyle kayda geçirilir.
+If the tree above produces a case that falls on two different branches with equal probability (e.g. "it resembles both a new industry and an existing module"), this becomes an [ADR](../adr/_template.md) topic — the decision is not something a single agent makes on its own, it is recorded with its rationale.
 
-## İlgili dosyalar
+## Related files
 
-- [tenant-model.md](tenant-model.md) — feature flag mekanizması
+- [tenant-model.md](tenant-model.md) — the feature flag mechanism
 - [../workflow/new-module-checklist.md](../workflow/new-module-checklist.md)
 - [../adr/_template.md](../adr/_template.md)

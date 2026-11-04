@@ -1,42 +1,42 @@
-# Backup & Felaket Kurtarma
+# Backup & Disaster Recovery
 
-Üyelik ve ödeme verisi tutan bir sistemde veri kaybı kabul edilemez — bu doküman yedekleme ve geri yükleme stratejisini tanımlar.
+Data loss is unacceptable in a system that holds membership and payment data — this document defines the backup and restore strategy.
 
-## Yedekleme
+## Backups
 
-| Ortam | Sıklık | Saklama süresi |
+| Environment | Frequency | Retention |
 |---|---|---|
-| production | Günlük tam yedek + sürekli WAL (write-ahead log) arşivleme | 30 gün |
-| staging | Haftalık | 7 gün |
-| local | Yedeklenmez (geliştirici ortamı, veri kaybı kritik değil) | — |
+| production | Daily full backup + continuous WAL (write-ahead log) archiving | 30 days |
+| staging | Weekly | 7 days |
+| local | Not backed up (developer environment, data loss is not critical) | — |
 
-- PostgreSQL için yönetilen bir servis kullanılıyorsa (bkz. [open-questions.md](../open-questions.md) — hosting kararı) otomatik yedekleme genelde sağlayıcı tarafından sunulur; kendi sunucunuzda barındırılırsa `pg_dump` + cron ile kurulmalı.
-- Yedekler, üretim veritabanından **farklı bir fiziksel konumda/sağlayıcıda** saklanır (aynı sunucu çökerse yedek de gitmesin diye).
+- If a managed service is used for PostgreSQL (see [open-questions.md](../open-questions.md) — hosting decision), automated backups are usually offered by the provider; if self-hosted on your own server, they must be set up with `pg_dump` + cron.
+- Backups are stored in **a different physical location/provider** than the production database (so the backup does not go down with the server if it fails).
 
-## Geri yükleme testi
+## Restore testing
 
-- Yedeklerin gerçekten geri yüklenebilir olduğu **düzenli olarak** (öneri: ayda bir) staging ortamında test edilir. Test edilmemiş bir yedek, yedek sayılmaz.
+- That backups can actually be restored is tested in the staging environment **on a regular basis** (suggestion: once a month). A backup that has not been tested does not count as a backup.
 
-## Kurtarma hedefleri
+## Recovery objectives
 
-| Metrik | Hedef | Anlamı |
+| Metric | Target | Meaning |
 |---|---|---|
-| RPO (Recovery Point Objective) | ≤ 24 saat | En kötü ihtimalle son 24 saatlik veri kaybedilebilir (WAL arşivleme ile bu süre pratikte çok daha kısa olur) |
-| RTO (Recovery Time Objective) | ≤ 4 saat | Bir felaket durumunda sistemin tekrar ayakta olma süresi hedefi |
+| RPO (Recovery Point Objective) | ≤ 24 hours | In the worst case the last 24 hours of data may be lost (with WAL archiving this window is in practice much shorter) |
+| RTO (Recovery Time Objective) | ≤ 4 hours | The target time for the system to be up again in a disaster |
 
-Bu hedefler MVP ölçeği için makul bir başlangıç noktasıdır — tenant sayısı ve SLA taahhütleri arttıkça (bkz. [open-questions.md](../open-questions.md) madde 9, ToS/SLA) daha sıkı hedeflere geçilebilir.
+These targets are a reasonable starting point for MVP scale — as the number of tenants and SLA commitments grow (see [open-questions.md](../open-questions.md) item 9, ToS/SLA), tighter targets can be adopted.
 
-## Felaket senaryoları
+## Disaster scenarios
 
-- **DB sunucusu çöker** → en son yedekten + WAL'dan geri yükleme, yeni bir instance'a bağlanma
-- **Yanlışlıkla veri silinir** (insan hatası ya da hatalı migration) → point-in-time recovery ile silme anından öncesine dönme
-- **Tüm hosting sağlayıcısı erişilemez hale gelir** → yedekler farklı sağlayıcıda/bölgede tutulduğu için yeni bir ortamda ayağa kaldırılabilir (bu senaryo için detaylı runbook, gerçek hosting kararı netleşince yazılır)
+- **The DB server crashes** → restore from the latest backup + WAL, connect to a new instance
+- **Data is deleted by accident** (human error or a faulty migration) → return to the moment before the deletion with point-in-time recovery
+- **The entire hosting provider becomes unreachable** → because backups are kept at a different provider/region, it can be brought up in a new environment (a detailed runbook for this scenario will be written once the actual hosting decision is settled)
 
-## Kapsam dışı (MVP'de yok)
+## Out of scope (not in the MVP)
 
-- Otomatik failover (aktif-pasif DB kümesi) — tenant sayısı ve SLA baskısı arttığında değerlendirilir.
+- Automatic failover (active-passive DB cluster) — considered when the number of tenants and SLA pressure grow.
 
-## İlgili dosyalar
+## Related files
 
-- [environments.md](environments.md) — ortam tanımları
-- [observability.md](observability.md) — yedekleme job'ının başarısız olması durumunda alarm
+- [environments.md](environments.md) — environment definitions
+- [observability.md](observability.md) — alerting if the backup job fails

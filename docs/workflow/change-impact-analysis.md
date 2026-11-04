@@ -1,41 +1,41 @@
-# Değişim Etki Analizi (Var Olan Kavramı Değiştirme)
+# Change Impact Analysis (Changing an Existing Concept)
 
-[new-module-checklist.md](new-module-checklist.md) **yeni bir şey eklemeyi** anlatıyor. Bu doküman farklı bir senaryo: **var olan, zaten kullanılan bir kavramı** değiştirmek (örn. `membership` tablosunu `subscription` olarak yeniden adlandırmak, bir alanın anlamını değiştirmek). Bu, new-module-checklist'ten daha riskli çünkü zaten üzerine kod yazılmış bir şeye dokunuyor.
+[new-module-checklist.md](new-module-checklist.md) describes **adding something new**. This document covers a different scenario: changing **an existing concept that is already in use** (e.g. renaming the `membership` table to `subscription`, changing the meaning of a field). This is riskier than the new-module checklist because it touches something that code has already been written against.
 
-## Ne zaman bu süreç izlenir
+## When to follow this process
 
-- Bir tablo/alan/sınıf **yeniden adlandırılıyorsa**
-- Bir kavramın **anlamı** değişiyorsa (örn. `membership.durum`'a yeni bir değer eklemek değil, mevcut bir değerin ne anlama geldiğini değiştirmek)
-- [domain-invariants.md](../platform/domain-invariants.md)'deki bir değişmez **kasıtlı olarak** gevşetiliyorsa/değiştiriliyorsa
+- When a table/field/class is being **renamed**
+- When the **meaning** of a concept changes (e.g. not adding a new value to `membership.status`, but changing what an existing value means)
+- When an invariant in [domain-invariants.md](../platform/domain-invariants.md) is being **deliberately** relaxed/changed
 
-Basit ekleme (yeni bir alan, yeni bir endpoint) bu süreci gerektirmez — sadece normal [issue-management.md](issue-management.md) akışı yeterli.
+Simple additions (a new field, a new endpoint) do not need this process — the normal [issue-management.md](issue-management.md) flow is enough.
 
-## Adımlar
+## Steps
 
-1. **Etki taraması** — [docs-dependency-map.md](../docs-dependency-map.md)'den değiştirilecek kavramın hangi dosyalarda geçtiği bulunur; harita eksikse `grep`/arama ile tüm doküman ve kod tabanında kavram adı taranır.
-2. **Etki listesi çıkarılır** — hangi dosyalar, hangi tablolar, hangi API alanları etkileniyor; bu bir issue açıklamasına yazılır (bkz. örnek aşağıda).
-3. **ADR gerekiyor mu?** — kavram bir [domain-invariants.md](../platform/domain-invariants.md) maddesini ya da bir [ADR](../adr/_template.md)'de alınmış kararı etkiliyorsa, değişiklik önce yeni bir ADR ile gerekçelendirilir (eskisi "vazgeçildi" olarak işaretlenir, değiştirilmez — bkz. [tech-stack.md](../platform/tech-stack.md)'deki ADR immutability prensibi).
-4. **Migration + kod + doküman tek bir PR zincirinde** — isim değişikliği asla sadece kodda ya da sadece dokümanda yapılmaz, ikisi birlikte günceller (bkz. [database-conventions.md](../platform/database-conventions.md)'deki migration kuralı — eski kolon silinmez, yeni kolon eklenip veri taşınır, sonra eskisi ayrı bir migration'da kaldırılır).
-5. **Glossary güncellenir** — eski terim [glossary.md](../glossary.md)'nin yasaklı kelimeler tablosuna eklenir, yeni terim tanımlanır.
+1. **Impact scan** — find which files the concept to be changed appears in from [docs-dependency-map.md](../docs-dependency-map.md); if the map is incomplete, scan the concept name across the entire documentation and code base with `grep`/search.
+2. **Produce the impact list** — which files, which tables, which API fields are affected; this is written into an issue description (see the example below).
+3. **Is an ADR needed?** — if the concept affects an item in [domain-invariants.md](../platform/domain-invariants.md) or a decision made in an [ADR](../adr/_template.md), the change is first justified with a new ADR (the old one is marked "abandoned", not modified — see the ADR immutability principle in [tech-stack.md](../platform/tech-stack.md)).
+4. **Migration + code + documentation in a single PR chain** — a rename is never done in code only or in documentation only; both are updated together (see the migration rule in [database-conventions.md](../platform/database-conventions.md) — the old column is not dropped; a new column is added and data moved, then the old one is removed in a separate migration).
+5. **Update the glossary** — the old term is added to the banned words table in [glossary.md](../glossary.md), and the new term is defined.
 
-## Örnek: `Membership` → `Subscription` yeniden adlandırması
+## Example: `Membership` → `Subscription` rename
 
 ```markdown
-## Etki listesi (change-impact-analysis çıktısı)
-- modules/core.md — membership veri modeli bölümü
-- modules/fitness.md, modules/berber.md — core.membership referansları
-- platform/tenant-model.md — "Üyelik" bölümü
-- platform/billing-model.md — tenant_payment.kaynak_tipi enum değeri
+## Impact list (change-impact-analysis output)
+- modules/core.md — membership data model section
+- modules/fitness.md, modules/berber.md — core.membership references
+- platform/tenant-model.md — "Membership" section
+- platform/billing-model.md — tenant_payment.source_type enum value
 - platform/domain-invariants.md — INV-1, INV-3, INV-7
 - platform/event-catalog.md — MembershipExpiringEvent, MembershipFrozenEvent
-- glossary.md — yasaklı kelimeler tablosuna "membership" eklenir
-- Migration: membership tablosu → subscription (rename, veri kaybı yok)
+- glossary.md — "membership" is added to the banned words table
+- Migration: membership table → subscription (rename, no data loss)
 ```
 
-Bu liste görülünce, bunun **tek bir küçük PR olamayacağı** hemen anlaşılır — [pr-and-definition-of-done.md](pr-and-definition-of-done.md)'daki "küçük PR kuralı" burada geçerli değil, bu tür kavram değişiklikleri istisnai olarak birden fazla koordineli PR'a bölünür, her biri kendi issue'suna sahip olur ama hepsi tek bir üst issue'ya (`epic`) bağlanır.
+Seeing this list, it is immediately clear that this **cannot be a single small PR** — the "small PR rule" in [pr-and-definition-of-done.md](pr-and-definition-of-done.md) does not apply here; concept changes like this are exceptionally split into multiple coordinated PRs, each with its own issue but all tied to a single parent issue (`epic`).
 
-## İlgili dosyalar
+## Related files
 
 - [../docs-dependency-map.md](../docs-dependency-map.md)
 - [../platform/domain-invariants.md](../platform/domain-invariants.md)
-- [new-module-checklist.md](new-module-checklist.md) — bunun tersi senaryo (ekleme, değiştirme değil)
+- [new-module-checklist.md](new-module-checklist.md) — the opposite scenario (adding, not changing)

@@ -1,54 +1,54 @@
-# PR Şablonu & Definition of Done
+# PR Template & Definition of Done
 
-[branch-strategy.md](branch-strategy.md)'deki adım 3 "PR açılır" diyordu ama PR'ın **neyi içermesi gerektiği** ve bir işin **ne zaman gerçekten bitmiş sayılacağı** tanımlanmamıştı.
+Step 3 "PR is opened" in [branch-strategy.md](branch-strategy.md) was defined, but **what a PR should contain** and **when a piece of work counts as truly done** had not been.
 
-## PR açıklama şablonu
+## PR description template
 
 ```markdown
-## Ne değişti
-Kısa özet (bir cümle yeterli, detay commit'lerde zaten var)
+## What changed
+Short summary (one sentence is enough, the details are already in the commits)
 
-## Neden
-Closes #<issue numarası>
+## Why
+Closes #<issue number>
 
-## Nasıl test edildi
-- [ ] Birim testleri geçti
-- [ ] Entegrasyon testleri geçti
-- [ ] (varsa) manuel test adımları
+## How it was tested
+- [ ] Unit tests passed
+- [ ] Integration tests passed
+- [ ] (if any) manual test steps
 
-## Dokunduğu modül
-`module:<core|fitness|berber|platform>` — [branch-strategy.md](branch-strategy.md)'deki çakışma kuralına göre PR sadece bu modülün klasörüne dokunmalı
+## Module touched
+`module:<core|fitness|berber|platform>` — per the conflict rule in [branch-strategy.md](branch-strategy.md), the PR should touch only this module's folder
 ```
 
-## Definition of Done — bir PR ne zaman gerçekten hazır sayılır
+## Definition of Done — when a PR is considered truly ready
 
-Aşağıdakilerin hepsi sağlanmadan PR merge edilmez:
+A PR is not merged until all of the following are met:
 
-- [ ] Kod, [code-style.md](../platform/code-style.md)'deki isimlendirme kurallarına uyuyor
-- [ ] Kullanılan terimler [glossary.md](../glossary.md) ile tutarlı (yeni bir terim icat edilmemiş)
-- [ ] Yeni/değişen her endpoint, [api-conventions.md](../platform/api-conventions.md)'deki URL/hata formatına uyuyor
-- [ ] Her yeni tablo `tenant_id` taşıyor (bkz. [tenant-model.md](../platform/tenant-model.md))
-- [ ] Kritik tablolara (üyelik, ödeme, rol) dokunuyorsa audit log mekanizmasından geçiyor (bkz. [audit-log.md](../platform/audit-log.md))
-- [ ] Birim + entegrasyon testleri yazıldı ve geçiyor (bkz. [testing-strategy.md](testing-strategy.md))
-- [ ] Tenant izolasyon testi kırılmadı (CI gate zaten bunu zorunlu kılıyor)
-- [ ] PR sadece kendi modülünün klasörüne dokunuyor, `core`'a habersiz dokunmuyor
-- [ ] Yeni bir modülse: [data-model-overview.md](../data-model-overview.md) güncellendi (bkz. [new-module-checklist.md](new-module-checklist.md))
-- [ ] Reviewer agent onayı + (kritikse) insan onayı var — bkz. [code-review-checklist.md](code-review-checklist.md)
+- [ ] The code complies with the naming rules in [code-style.md](../platform/code-style.md)
+- [ ] The terms used are consistent with [glossary.md](../glossary.md) (no new term invented)
+- [ ] Every new/changed endpoint complies with the URL/error format in [api-conventions.md](../platform/api-conventions.md)
+- [ ] Every new table carries `tenant_id` (see [tenant-model.md](../platform/tenant-model.md))
+- [ ] If it touches critical tables (membership, payment, role), it goes through the audit log mechanism (see [audit-log.md](../platform/audit-log.md))
+- [ ] Unit + integration tests are written and passing (see [testing-strategy.md](testing-strategy.md))
+- [ ] The tenant isolation test is not broken (the CI gate already enforces this)
+- [ ] The PR touches only its own module's folder, and does not touch `core` without notice
+- [ ] If it is a new module: [data-model-overview.md](../data-model-overview.md) is updated (see [new-module-checklist.md](new-module-checklist.md))
+- [ ] Reviewer agent approval + (if critical) human approval is in place — see [code-review-checklist.md](code-review-checklist.md)
 
-## Max Iteration = 3 kuralı (reviewer↔coder döngüsü)
+## Max Iteration = 3 rule (reviewer↔coder loop)
 
-Coder agent kodu yazar → reviewer reddeder → coder düzeltir → reviewer yine bir şeye takılır — bu döngü agent'lar arasında kontrolsüz uzayabilir, her tur bir API maliyeti demektir.
+The coder agent writes code → the reviewer rejects → the coder fixes → the reviewer gets stuck on something else again — this loop can grow uncontrollably between agents, and every round is an API cost.
 
-**Kural:** Aynı PR üzerinde reviewer-coder döngüsü **3 turu** geçerse (reviewer 3. kez red/değişiklik isterse), pipeline otomatik durur ve PR "insan incelemesi gerekiyor" etiketiyle işaretlenir — `approver` ya da `platform_owner` devreye girip ya kararı verir (kabul et/değiştir) ya da issue'yu yeniden kapsamlandırır. Coder 4. bir deneme yapmaz.
+**Rule:** If the reviewer-coder loop on the same PR exceeds **3 rounds** (the reviewer rejects/requests changes a 3rd time), the pipeline stops automatically and the PR is marked with a "human review required" label — the `approver` or `platform_owner` steps in and either makes the decision (accept/change) or re-scopes the issue. The coder does not make a 4th attempt.
 
-- Bu sayaç PR açıklamasında görünür tutulur (`review-iteration: 2/3` gibi).
-- Amaç coder'ı cezalandırmak değil — 3 turda çözülemeyen bir anlaşmazlık genelde kuralın kendisinin (code-review-checklist.md'deki bir madde) belirsiz olduğunun işaretidir, bu durumda checklist'in kendisi gözden geçirilir.
+- This counter is kept visible in the PR description (like `review-iteration: 2/3`).
+- The goal is not to punish the coder — a disagreement that cannot be resolved in 3 rounds is usually a sign that the rule itself (an item in code-review-checklist.md) is ambiguous, in which case the checklist itself is reviewed.
 
-## Küçük PR kuralı
+## Small PR rule
 
-Bir PR, tek bir issue'yu kapatacak kadar küçük tutulur. "Bu arada şunu da düzelttim" tarzı, issue kapsamı dışına çıkan değişiklikler ayrı bir issue/PR olur — [branch-strategy.md](branch-strategy.md)'deki kısa ömürlü branch prensibiyle aynı gerekçe: küçük PR, hem insan hem agent review'unu hızlandırır, çakışma riskini azaltır.
+A PR is kept small enough to close a single issue. Changes that go beyond the issue's scope, in the style of "while I was at it I also fixed this", become a separate issue/PR — the same rationale as the short-lived branch principle in [branch-strategy.md](branch-strategy.md): a small PR speeds up both human and agent review and reduces conflict risk.
 
-## İlgili dosyalar
+## Related files
 
 - [issue-management.md](issue-management.md)
 - [code-review-checklist.md](code-review-checklist.md)
