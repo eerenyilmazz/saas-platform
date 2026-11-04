@@ -4,6 +4,7 @@
 
 **A modular, multi-tenant SaaS for service businesses — starting with gyms and barbershops.**
 
+[![CI](https://github.com/eerenyilmazz/saas-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/eerenyilmazz/saas-platform/actions/workflows/ci.yml)
 ![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?logo=springboot&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16_+_RLS-4169E1?logo=postgresql&logoColor=white)
