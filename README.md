@@ -148,3 +148,8 @@ cd apps/api
 | [docs/platform/tenant-isolation-enforcement.md](docs/platform/tenant-isolation-enforcement.md) | How tenant isolation is enforced |
 | [docs/workflow/agent-pipeline.md](docs/workflow/agent-pipeline.md) | Plan → code → review → test workflow |
 
+---
+
+## License
+
+Copyright (c) 2026 Eren Yılmaz. All rights reserved. The source is publicly visible for evaluation only; see [`LICENSE`](LICENSE). To request permission to use any part of it, contact eerenyilmazz1@gmail.com.
