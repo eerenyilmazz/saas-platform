@@ -1,56 +1,56 @@
-# Başlangıç Talimatı — Bu Projeye Yeni Başlayan Agent İçin
+# Kickoff Instructions — For an Agent Newly Starting on This Project
 
-> Bu dosya, bu repoyu ilk kez gören bir agent'ın (ya da insanın) **ilk yapması gereken şey** olarak tasarlandı. Kullanıcı yeni bir oturum açtığında ilk mesaj olarak şunu yazabilir: *"Bu repoyu klonladım, `docs/kickoff.md`'yi oku ve başla."*
+> This file is designed to be **the first thing to do** for an agent (or human) seeing this repo for the first time. When the user opens a new session, they can write this as the first message: *"I cloned this repo, read `docs/kickoff.md` and get started."*
 
-## Adım 1 — Bağlamı oku (sırayla)
+## Step 1 — Read the context (in order)
 
-1. [README.md](README.md) — tüm doküman setinin indeksi, önce burayı oku
-2. [glossary.md](glossary.md) — terimler, hiçbir yerde bunun dışında bir isim uydurma
-3. [architecture-constraints.md](platform/architecture-constraints.md) + [domain-invariants.md](platform/domain-invariants.md) — ihlal edilemez kurallar
+1. [README.md](README.md) — the index of the whole documentation set, read this first
+2. [glossary.md](glossary.md) — the terms, do not invent a name outside these anywhere
+3. [architecture-constraints.md](platform/architecture-constraints.md) + [domain-invariants.md](platform/domain-invariants.md) — the inviolable rules
 
-Bu üçünü okumadan hiçbir soru sorma, hiçbir dosya oluşturma.
+Do not ask any questions or create any files before reading these three.
 
-## Adım 2 — Açık soruları kullanıcıya sor
+## Step 2 — Ask the open questions to the user
 
-[open-questions.md](open-questions.md)'yi aç. İçindeki **10 madde**nin durumunu kontrol et. Dosyanın sonundaki özet tabloya göre:
+Open [open-questions.md](open-questions.md). Check the status of the **10 items** in it. According to the summary table at the end of the file:
 
-- **Bloklayıcı olanları** (şu an: madde 1 domain/şirket adı, madde 4 onboarding modeli, madde 8 hosting hedefi) kullanıcıya **tek tek, sade bir dille** sor — dosyadaki teknik metni doğrudan yapıştırma, "bu ne demek" sorusuna kullanıcı cevap verebilsin diye 1-2 cümleyle özetleyerek sor.
-- **Bloklayıcı olmayanları** (ödeme/SMS sağlayıcısı, panel eşiği, fiyatlandırma, e-Fatura, KVKK/ToS hukuki onayı) aynı oturumda sormaya çalışma — kullanıcıya "bunlar da var ama şimdi bloklamıyor, istersen sonra konuşuruz" de, cevap istemiyorsa geç.
+- Ask the user the **blocking ones** (currently: item 1 domain/company name, item 4 onboarding model, item 8 hosting target) **one by one, in plain language** — do not paste the technical text in the file directly; ask by summarizing in 1-2 sentences so that the user can answer the "what does this mean" question.
+- Do not try to ask the **non-blocking ones** (payment/SMS provider, panel threshold, pricing, e-Invoice, KVKK/ToS legal approval) in the same session — tell the user "these exist too but are not blocking now, we can talk later if you like", and skip them if they do not want to answer.
 
-**Nasıl sor — örnek:**
+**How to ask — example:**
 
-> "Başlamadan önce 3 karar lazım:
-> 1. Şirketin/ürünün gerçek adı ne olacak? (Kod paketlerinde `com.saas.*` yerine kullanılacak)
-> 2. İlk müşterileri sen mi manuel açacaksın, yoksa kayıt formuyla kendi kendine mi kayıt olsunlar?
-> 3. Sunucu nerede barındırılsın — Hetzner/DigitalOcean gibi ucuz bir VPS mi, yoksa AWS/GCP gibi daha kurumsal bir şey mi?"
+> "Before we start, 3 decisions are needed:
+> 1. What will the company's/product's real name be? (It will be used in place of `com.saas.*` in the code packages)
+> 2. Will you open the first customers manually yourself, or should they sign up on their own through a registration form?
+> 3. Where should the server be hosted — a cheap VPS such as Hetzner/DigitalOcean, or something more enterprise-grade like AWS/GCP?"
 
-## Adım 3 — Cevapları dosyalara işle
+## Step 3 — Record the answers in the files
 
-Kullanıcı cevap verince, cevabı **sadece kaydetme, ilgili dosyaları güncelle**:
+When the user answers, **don't just save the answer, update the relevant files**:
 
-| Cevaplanan soru | Güncellenecek dosyalar |
+| Question answered | Files to update |
 |---|---|
-| Domain/şirket adı | [package-naming.md](package-naming.md), tüm modül dosyalarındaki `com.saas.*` → gerçek isim (toplu değiştirme) |
-| Onboarding modeli | [platform/onboarding.md](platform/onboarding.md) — zaten "manuel" varsayımı var, kullanıcı farklı derse bu dosya yeniden yazılır |
-| Hosting hedefi | [infra/environments.md](infra/environments.md), [infra/backup-recovery.md](infra/backup-recovery.md) |
+| Domain/company name | [package-naming.md](package-naming.md), `com.saas.*` → the real name in all module files (bulk replacement) |
+| Onboarding model | [platform/onboarding.md](platform/onboarding.md) — it already assumes "manual"; if the user says otherwise, this file is rewritten |
+| Hosting target | [infra/environments.md](infra/environments.md), [infra/backup-recovery.md](infra/backup-recovery.md) |
 
-Her cevaplanan madde için [open-questions.md](open-questions.md)'deki ilgili bölümün **Durum** satırını `Açık` → `Çözüldü (yyyy-aa-gg)` olarak güncelle, özet tablodan o satırı kaldır.
+For each answered item, update the **Status** line of the relevant section in [open-questions.md](open-questions.md) from `Open` → `Resolved (yyyy-mm-dd)`, and remove that row from the summary table.
 
-## Adım 4 — Faz 0'a geç
+## Step 4 — Move on to Phase 0
 
-3 bloklayıcı soru cevaplanınca (ya da kullanıcı "bunlar olmadan da başla" derse — bu durumda varsayılanlar kullanılır ve `open-questions.md`'de not düşülür), [roadmap/phases.md](roadmap/phases.md)'deki **Faz 0**'ı başlat:
+Once the 3 blocking questions are answered (or the user says "start even without these" — in which case defaults are used and a note is left in `open-questions.md`), start **Phase 0** in [roadmap/phases.md](roadmap/phases.md):
 
-- Monorepo iskeletini [repo-structure.md](repo-structure.md)'ya göre oluştur
-- [dev-setup.md](dev-setup.md)'deki komutları gerçek proje ile doğrula/güncelle
-- [tech-stack.md](platform/tech-stack.md)'deki sürümlerle (Java 21, PostgreSQL, Flyway) iskeleti kur
+- Create the monorepo skeleton according to [repo-structure.md](repo-structure.md)
+- Verify/update the commands in [dev-setup.md](dev-setup.md) against the real project
+- Set up the skeleton with the versions in [tech-stack.md](platform/tech-stack.md) (Java 21, PostgreSQL, Flyway)
 
-## Adım 5 — Sonraki her adımda
+## Step 5 — On every following step
 
-- [agent-pipeline.md](workflow/agent-pipeline.md)'deki rol sınırlarına uy
-- [code-style.md](platform/code-style.md)'deki dil kuralına uy (**kod her zaman İngilizce**, dokümanlar Türkçe)
-- Yeni bir issue açmadan önce [issue-management.md](workflow/issue-management.md)'deki şablonu ve Context Hydration listesini doldur
-- Bir modülde çalışıyorsan sadece o modülün spec dosyasını + [glossary.md](glossary.md)'yi oku, [docs-dependency-map.md](docs-dependency-map.md)'ye bakıp etkilenen diğer dosyaları kontrol et
+- Follow the role boundaries in [agent-pipeline.md](workflow/agent-pipeline.md)
+- Follow the language rule in [code-style.md](platform/code-style.md) (**code and documentation are always in English**)
+- Before opening a new issue, fill in the template and the Context Hydration list in [issue-management.md](workflow/issue-management.md)
+- If you are working on a module, read only that module's spec file + [glossary.md](glossary.md), and check [docs-dependency-map.md](docs-dependency-map.md) to see the other affected files
 
-## Bu dosya hakkında
+## About this file
 
-Bu, [docs-versioning.md](docs-versioning.md)'deki context hydration mantığının **oturum başlangıcı** karşılığıdır — issue bazlı daraltma issue açıldıktan sonrası için, bu dosya ise "hiçbir issue yokken, sıfırdan başlarken" ne yapılacağını tanımlar.
+This is the **session-start** counterpart of the context hydration logic in [docs-versioning.md](docs-versioning.md) — issue-based narrowing is for after an issue has been opened, while this file defines what to do "when there is no issue, starting from scratch".

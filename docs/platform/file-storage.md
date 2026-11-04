@@ -1,34 +1,34 @@
-# Dosya/Görsel Depolama
+# File/Image Storage
 
-[tenant-model.md](tenant-model.md)'deki `settings.branding.logo_url` alanı bir tenant logosunun varlığını ima ediyordu ama bu görselin **nereye yükleneceği** hiç tanımlanmamıştı — veritabanına dosya gömülmez, ayrı bir depolama katmanı gerekir.
+The `settings.branding.logo_url` field in [tenant-model.md](tenant-model.md) implied the existence of a tenant logo, but **where this image would be uploaded** had never been defined — files are not embedded in the database, a separate storage layer is needed.
 
-## Karar: S3 uyumlu object storage
+## Decision: S3-compatible object storage
 
-- Görseller (tenant logosu, ileride ürün/menü fotoğrafı gibi modül-özel ihtiyaçlar) veritabanına değil, S3 API'siyle uyumlu bir object storage'a yüklenir.
-- Hangi sağlayıcı (AWS S3, Cloudflare R2, ya da seçilecek hosting sağlayıcısının kendi object storage'ı) [open-questions.md](../open-questions.md) madde 8'deki (hosting) kararla birlikte netleşir — S3 API uyumluluğu sayesinde sağlayıcı değişse bile kod tarafı değişmez.
-- Veritabanında sadece dosyanın **URL'i** tutulur (`tenant.settings.branding.logo_url`), dosyanın kendisi değil.
+- Images (the tenant logo, and in the future module-specific needs such as product/menu photos) are uploaded not to the database but to an object storage compatible with the S3 API.
+- Which provider (AWS S3, Cloudflare R2, or the object storage of the hosting provider that will be chosen) will be settled together with the decision in [open-questions.md](../open-questions.md) item 8 (hosting) — thanks to S3 API compatibility the code side does not change even if the provider changes.
+- Only the file's **URL** is kept in the database (`tenant.settings.branding.logo_url`), not the file itself.
 
-## Yükleme akışı
+## Upload flow
 
 ```
-[Frontend] → [API: presigned upload URL iste] → [Frontend, dosyayı doğrudan object storage'a yükler] → [API: URL'i tenant.settings'e kaydet]
+[Frontend] → [API: request a presigned upload URL] → [Frontend uploads the file directly to object storage] → [API: save the URL to tenant.settings]
 ```
 
-- Dosya, backend sunucusundan geçmeden doğrudan object storage'a yüklenir (presigned URL yöntemi) — backend'i gereksiz yere dosya trafiğiyle meşgul etmemek için standart pratik.
+- The file is uploaded directly to object storage without passing through the backend server (the presigned URL method) — the standard practice so as not to keep the backend needlessly busy with file traffic.
 
-## Güvenlik kuralı
+## Security rule
 
-- Yüklenen dosya tipi kısıtlanır (sadece `image/png`, `image/jpeg` vb.) — [security.md](security.md)'deki girdi doğrulama prensibiyle tutarlı.
-- Dosya boyutu üst sınırı konur (öneri: 2 MB, logo için fazlasıyla yeterli).
-- Her tenant'ın yüklediği dosya, kendi tenant'ına ait bir klasör/prefix altında tutulur (`tenant_id` bazlı ayrım) — bir tenant'ın dosya URL'ini tahmin ederek başka bir tenant'ın dosyasına erişememesi için.
+- The uploaded file type is restricted (only `image/png`, `image/jpeg`, etc.) — consistent with the input validation principle in [security.md](security.md).
+- A file size upper limit is set (suggestion: 2 MB, more than enough for a logo).
+- Each tenant's uploaded files are kept under a folder/prefix belonging to its own tenant (separation by `tenant_id`) — so that one tenant cannot access another tenant's file by guessing its file URL.
 
-## Kapsam dışı (MVP'de yok)
+## Out of scope (not in the MVP)
 
-- Görsel işleme (otomatik boyutlandırma/thumbnail üretimi) — logo genelde küçük bir dosya, MVP'de ham haliyle kullanılır.
-- Video/büyük dosya desteği — kapsam dışı, ihtiyaç olursa ayrıca değerlendirilir.
+- Image processing (automatic resizing/thumbnail generation) — a logo is usually a small file and is used as-is in the MVP.
+- Video/large file support — out of scope, evaluated separately if a need arises.
 
-## İlgili dosyalar
+## Related files
 
-- [tenant-model.md](tenant-model.md) — `branding.logo_url` alanı
+- [tenant-model.md](tenant-model.md) — the `branding.logo_url` field
 - [security.md](security.md)
-- [../open-questions.md](../open-questions.md) — hosting kararıyla birlikte netleşecek sağlayıcı seçimi
+- [../open-questions.md](../open-questions.md) — the provider choice to be settled together with the hosting decision

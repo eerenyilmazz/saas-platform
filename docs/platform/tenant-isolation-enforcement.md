@@ -1,82 +1,82 @@
-# Tenant İzolasyonunun Uygulanması ve Test Edilmesi
+# Enforcing and Testing Tenant Isolation
 
-[ADR 0008](../adr/0008-row-level-security.md) RLS kararını verdi — bu doküman bunun kod/test seviyesindeki somut karşılığı.
+[ADR 0008](../adr/0008-row-level-security.md) made the RLS decision — this document is its concrete counterpart at the code/test level.
 
-## Savunma katmanı — bugün tek katman
+## Defense layers — a single layer today
 
-| Katman | Mekanizma | Durum |
+| Layer | Mechanism | Status |
 |---|---|---|
-| 1. Uygulama | Ortak repository/base sınıf, her sorguya `tenant_id` ekler (bkz. [tenant-model.md](tenant-model.md)) | **Ertelendi** — [ADR 0011](../adr/0011-uygulama-katmani-tenant-filtresi-ertelendi.md): mevcut transaction mimarisinde (her repository çağrısı kendi Session'ını açıyor) güvenilir şekilde kurulamıyor |
-| 2. Veritabanı | PostgreSQL RLS (bkz. [ADR 0008](../adr/0008-row-level-security.md)) | Aktif — kod yanlış yazılsa/unutulsa bile çalışır |
+| 1. Application | A shared repository/base class adds `tenant_id` to every query (see [tenant-model.md](tenant-model.md)) | **Deferred** — [ADR 0011](../adr/0011-app-layer-tenant-filter-deferred.md): it cannot be built reliably in the current transaction architecture (each repository call opens its own Session) |
+| 2. Database | PostgreSQL RLS (see [ADR 0008](../adr/0008-row-level-security.md)) | Active — works even if the code is written wrong/forgotten |
 
-Bugün tenant izolasyonunun tamamı RLS'e dayanıyor — bu kırılgan değil (aşağıdaki testler bunu kanıtlıyor), ama tek katman. Katman 1 eklenirse (ADR 0011'in yeniden değerlendirilmesiyle) bu tablo güncellenir.
+Today, tenant isolation relies entirely on RLS — this is not fragile (the tests below prove it), but it is a single layer. If layer 1 is added (through a re-evaluation of ADR 0011), this table will be updated.
 
-## Migration'a zorunlu adım
+## Mandatory step in migrations
 
-[database-conventions.md](database-conventions.md)'deki migration kuralına ek: **tenant verisi taşıyan her yeni tablo**, aynı migration içinde RLS'i de aktif eder:
+In addition to the migration rule in [database-conventions.md](database-conventions.md): **every new table that holds tenant data** also enables RLS in the same migration:
 
 ```sql
 CREATE TABLE service (...);
 CREATE INDEX idx_service_tenant_id ON service(tenant_id);
 ALTER TABLE service ENABLE ROW LEVEL SECURITY;
-ALTER TABLE service FORCE ROW LEVEL SECURITY;  -- bkz. aşağıdaki "tablo sahibi" tuzağı, ASLA atlanmaz
+ALTER TABLE service FORCE ROW LEVEL SECURITY;  -- see the "table owner" trap below, NEVER skipped
 CREATE POLICY tenant_isolation ON service
     USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 ```
 
-Bu dört satır (index + RLS aktif + RLS zorunlu + policy), [new-module-checklist.md](../workflow/new-module-checklist.md)'ye eklenen zorunlu bir kontrol maddesidir — [code-review-checklist.md](../workflow/code-review-checklist.md)'nin 1. kategorisinde (sınır ihlali) reviewer bunu arar, yoksa PR bloklanır.
+These four lines (index + RLS enabled + RLS forced + policy) are a mandatory check item added to [new-module-checklist.md](../workflow/new-module-checklist.md) — the reviewer looks for this under category 1 (boundary violation) of [code-review-checklist.md](../workflow/code-review-checklist.md), and the PR is blocked if it is missing.
 
-### Kritik tuzak: `FORCE` olmadan RLS tablo sahibini hiç etkilemez
+### Critical trap: without `FORCE`, RLS does not affect the table owner at all
 
-`ENABLE ROW LEVEL SECURITY` **tek başına yetersiz** — PostgreSQL, RLS'i varsayılan olarak tablo **sahibi olmayan** rollere uygular. Uygulama, tabloyu migration'la oluşturan **aynı** veritabanı kullanıcısıyla bağlandığı için (yani tablonun sahibi kendisi), `FORCE ROW LEVEL SECURITY` eklenmezse policy **sessizce hiç çalışmaz** — hata vermez, sadece işe yaramaz. Bu, Faz 1'de gerçek bir Testcontainers testiyle yakalandı (kod incelemesiyle değil): `tenant` tablosu için ilk yazılan migration `FORCE` içermiyordu, test "context olmadan 0 satır görünmeli" diye beklerken tüm satırları gördü. `FORCE` eklenene kadar bu böyleydi.
+`ENABLE ROW LEVEL SECURITY` is **not enough on its own** — by default PostgreSQL applies RLS to roles that are **not the table owner**. Because the application connects with the **same** database user that created the table with the migration (i.e. it is the table owner itself), if `FORCE ROW LEVEL SECURITY` is not added the policy **silently never works** — it throws no error, it simply does nothing. This was caught in Phase 1 by a real Testcontainers test (not by code review): the first migration written for the `tenant` table did not include `FORCE`, and the test, expecting "0 rows should be visible without a context", saw all the rows. It stayed that way until `FORCE` was added.
 
-**Sonuç:** `FORCE ROW LEVEL SECURITY` satırı asla atlanmaz, "zaten ENABLE ettim" yeterli değildir.
+**Conclusion:** The `FORCE ROW LEVEL SECURITY` line is never skipped; "I already did ENABLE" is not enough.
 
-### Daha kritik tuzak: superuser `FORCE`'u bile atlar
+### More critical trap: a superuser bypasses even `FORCE`
 
-`FORCE` bile **superuser rolleri** için hiçbir işe yaramaz — PostgreSQL'de superuser, RLS'i koşulsuz atlar, bu davranış kapatılamaz. Yerel/Docker kurulumunda `POSTGRES_USER` ile açılan rol **her zaman superuser**'dır. Migration'ları çalıştıran rolle uygulamanın çalışma zamanında bağlandığı rol **aynı** olursa, yukarıdaki tüm RLS kurulumu (ENABLE + FORCE + policy) sessizce hiçbir işe yaramaz.
+Even `FORCE` does nothing for **superuser roles** — in PostgreSQL a superuser bypasses RLS unconditionally and this behavior cannot be turned off. In a local/Docker setup, the role created with `POSTGRES_USER` is **always a superuser**. If the role that runs the migrations and the role the application connects with at runtime are the **same**, all of the RLS setup above (ENABLE + FORCE + policy) silently does nothing.
 
-**Zorunlu ayrım — her ortamda iki rol:**
+**Mandatory separation — two roles in every environment:**
 
-| Rol | Kullanım | Yetki |
+| Role | Usage | Privilege |
 |---|---|---|
-| Migration rolü (örn. `saas`) | Sadece Flyway migration'larını çalıştırır (`spring.flyway.url/user/password`) | Superuser (DDL, `CREATE ROLE` için gerekli) |
-| Uygulama rolü (`saas_app`) | Uygulamanın çalışma zamanı bağlantısı (`spring.datasource.url/username/password`) | `NOSUPERUSER NOBYPASSRLS`, sadece ihtiyacı olan tablolarda `SELECT/INSERT/UPDATE/DELETE` grant'i |
+| Migration role (e.g. `saas`) | Runs only the Flyway migrations (`spring.flyway.url/user/password`) | Superuser (needed for DDL, `CREATE ROLE`) |
+| Application role (`saas_app`) | The application's runtime connection (`spring.datasource.url/username/password`) | `NOSUPERUSER NOBYPASSRLS`, a `SELECT/INSERT/UPDATE/DELETE` grant only on the tables it needs |
 
-`saas_app` rolü ve temel grant'leri, ilk migration'da (`V202607171821__create_application_role.sql`) oluşturulur — her yeni tablo, kendi migration'ında bu role `GRANT SELECT, INSERT, UPDATE, DELETE ON <tablo> TO saas_app;` eklemek zorundadır, yoksa uygulama o tabloya hiç erişemez (RLS'ten bağımsız, temel bir yetki hatası olarak).
+The `saas_app` role and its basic grants are created in the first migration (`V202607171821__create_application_role.sql`) — every new table must add `GRANT SELECT, INSERT, UPDATE, DELETE ON <table> TO saas_app;` to this role in its own migration, otherwise the application cannot access that table at all (independent of RLS, as a basic permission error).
 
-Bu iki bulgu (FORCE ve superuser) tek bir gerçek Testcontainers test çalıştırmasıyla ortaya çıktı — ikisi de kod incelemesiyle fark edilmezdi, ikisi de "RLS kuruldu" görünümü verirken sessizce hiçbir şeyi korumuyordu.
+These two findings (FORCE and superuser) came out of a single real Testcontainers test run — neither would have been noticed by code review, and both gave the appearance of "RLS is set up" while silently protecting nothing.
 
-## Test — bu bir "iyi olursa" değil, zorunlu gate
+## Test — this is not a "nice to have", it is a mandatory gate
 
-[../workflow/testing-strategy.md](../workflow/testing-strategy.md)'deki "tenant izolasyon testi" artık iki senaryoyu da kapsar:
+The "tenant isolation test" in [../workflow/testing-strategy.md](../workflow/testing-strategy.md) now covers both scenarios:
 
 ```java
 @Test void applicationLayerFilteringWorks() {
-    // normal akış: repository doğru tenant_id ile sorgular
+    // normal flow: the repository queries with the correct tenant_id
 }
 
 @Test void rlsCannotBeBypassed() {
-    // KASITLI OLARAK tenant_id filtresini atlayan ham bir SQL sorgusu çalıştır
-    // beklenen: yine de sadece o session'ın tenant'ının satırları döner
-    // (RLS'in gerçekten çalıştığının kanıtı — sadece var olduğunu değil, iş gördüğünü test eder)
+    // run a raw SQL query that DELIBERATELY skips the tenant_id filter
+    // expected: only the rows of that session's tenant are still returned
+    // (proof that RLS really works — tests not just that it exists, but that it does its job)
 }
 ```
 
-İkinci test özellikle önemli: RLS'in "aktif edildiğini" değil, "gerçekten sızıntıyı engellediğini" doğrular — bir migration'da `ENABLE ROW LEVEL SECURITY` unutulursa bu test kırılır.
+The second test is especially important: it verifies not that RLS is "enabled" but that it "actually prevents leakage" — if `ENABLE ROW LEVEL SECURITY` is forgotten in a migration, this test breaks.
 
-## platform_owner için kasıtlı istisna — iki farklı bayrak, iki farklı senaryo
+## Deliberate exception for the platform_owner — two different flags, two different scenarios
 
-platform_owner'ın RLS'i bilinçli olarak aşması gereken **iki ayrı senaryo** var, ikisi de ayrı bir session bayrağıyla çözülür:
+There are **two separate scenarios** in which the platform_owner has to deliberately bypass RLS, and both are solved with a separate session flag:
 
-| Bayrak | Ne zaman aktif | Hangi tablolar | Örnek |
+| Flag | When active | Which tables | Example |
 |---|---|---|---|
-| `app.platform_context` | platform_owner'ın `com.saas.platform.*` üzerinden yaptığı **rutin** tenant yönetimi işlemleri (yeni tenant açma, tenant listeleme) | `tenant` tablosunun kendisi | [modules/core.md](../modules/core.md)'daki `tenant` — bkz. [ADR 0008](../adr/0008-row-level-security.md)'deki migration örneği |
-| `app.support_mode` | [support-access.md](support-access.md)'deki **geçici, sebep gerektiren** destek modu | Diğer tüm tenant-scoped tablolar (`member`, `appointment` vb.) | Bir tenant "üyemi bulamıyorum" dediğinde |
+| `app.platform_context` | **Routine** tenant management operations the platform_owner performs through `com.saas.platform.*` (opening a new tenant, listing tenants) | The `tenant` table itself | `tenant` in [modules/core.md](../modules/core.md) — see the migration example in [ADR 0008](../adr/0008-row-level-security.md) |
+| `app.support_mode` | The **temporary, reason-requiring** support mode in [support-access.md](support-access.md) | All other tenant-scoped tables (`member`, `appointment`, etc.) | When a tenant says "I can't find my member" |
 
-İkisi de her erişimi [audit-log.md](audit-log.md)'a yazar — "kimse aşamaz" değil "sadece loglu/yetkili bir yoldan aşılabilir." `app.platform_context`, platform_owner'ın günlük işi olduğu için sebep sorulmaz; `app.support_mode` her zaman bir sebep metni ister (bkz. [support-access.md](support-access.md)).
+Both write every access to [audit-log.md](audit-log.md) — not "no one can bypass it" but "it can be bypassed only through a logged/authorized path." `app.platform_context` asks for no reason since it is the platform_owner's daily work; `app.support_mode` always asks for a reason text (see [support-access.md](support-access.md)).
 
-## İlgili dosyalar
+## Related files
 
 - [../adr/0008-row-level-security.md](../adr/0008-row-level-security.md)
 - [database-conventions.md](database-conventions.md)

@@ -1,26 +1,26 @@
-# Yasaklı Kod Kalıpları (Anti-Pattern'ler)
+# Banned Code Patterns (Anti-Patterns)
 
-[architecture-constraints.md](architecture-constraints.md) mimari sınırları tanımlıyor, bu dosya **sınır ihlali olmayan ama yine de kalitesiz** kod kalıplarını listeler — [code-review-checklist.md](../workflow/code-review-checklist.md)'nin 5. kategorisinde (iş mantığı) reviewer'ın aradığı somut kalıplar.
+[architecture-constraints.md](architecture-constraints.md) defines architectural boundaries; this file lists code patterns that **are not boundary violations but are still poor quality** — the concrete patterns the reviewer looks for in category 5 (business logic) of [code-review-checklist.md](../workflow/code-review-checklist.md).
 
-## Yasaklı kalıplar
+## Banned patterns
 
-| Kalıp | Neden yasak | Doğrusu |
+| Pattern | Why it is banned | The right way |
 |---|---|---|
-| **God Class / Service** | Tek bir sınıf her şeyi yapmaya çalışır, [architecture-constraints.md](architecture-constraints.md)'deki karmaşıklık bütçesini aşar | Sorumluluğa göre böl (örn. `MembershipService` ayrı, `MembershipNotificationService` ayrı) |
-| **Repository Explosion** | Her küçük sorgu için ayrı bir repository metodu, aynı sorgunun varyasyonları çoğalır | Ortak sorgu mantığı `Specification`/query builder ile parametrik yazılır |
-| **DTO içinde Entity** | API yanıtında doğrudan JPA entity dönülür — iç veri modeli dışa sızar, ileride entity değişikliği API'yi kırar | Her zaman ayrı `Response` DTO'su (bkz. [code-style.md](code-style.md)) |
-| **N+1 Query** | Liste + ilişkili veri döngü içinde ayrı sorguyla çekilir | `JOIN FETCH`/`@EntityGraph` (bkz. [database-conventions.md](database-conventions.md)) |
-| **Business Logic Controller** | Controller içinde if/else ile karar verme | İş kuralı her zaman `Service` katmanında (bkz. [architecture-constraints.md](architecture-constraints.md)) |
-| **Generic Repository** | Tek bir `GenericRepository<T>` ile tüm tablolar aynı kalıpla yönetilmeye çalışılır, modül-özel sorgu ihtiyaçları zorlanır | Her entity kendi `XxxRepository` arayüzüne sahip (Spring Data JPA standardı) |
-| **Utils Hell** | Alakasız yardımcı metodların tek bir `Utils`/`Helper` sınıfında birikmesi | Her yardımcı fonksiyon, ilgili olduğu dar bir sınıfa/paket içine konur, "genel" bir çöp kutusu sınıfı olmaz |
-| **Silent catch** | `catch (Exception e) {}` — hata yutulur, iz bırakılmaz | Her exception ya [error-handling.md](error-handling.md)'deki hiyerarşiye çevrilir ya da yeniden fırlatılır, asla sessizce yutulmaz |
+| **God Class / Service** | A single class tries to do everything and exceeds the complexity budget in [architecture-constraints.md](architecture-constraints.md) | Split by responsibility (e.g. `MembershipService` separate, `MembershipNotificationService` separate) |
+| **Repository Explosion** | A separate repository method for every small query; variations of the same query multiply | Shared query logic is written parametrically with `Specification`/a query builder |
+| **Entity inside DTO** | A JPA entity is returned directly in an API response — the internal data model leaks outward, and a later entity change breaks the API | Always a separate `Response` DTO (see [code-style.md](code-style.md)) |
+| **N+1 Query** | A list + related data is fetched with separate queries inside a loop | `JOIN FETCH`/`@EntityGraph` (see [database-conventions.md](database-conventions.md)) |
+| **Business Logic Controller** | Making decisions with if/else inside a Controller | Business rules always in the `Service` layer (see [architecture-constraints.md](architecture-constraints.md)) |
+| **Generic Repository** | A single `GenericRepository<T>` is used to try to manage all tables with the same pattern, forcing module-specific query needs | Each entity has its own `XxxRepository` interface (the Spring Data JPA standard) |
+| **Utils Hell** | Unrelated helper methods pile up in a single `Utils`/`Helper` class | Each helper function goes into the narrow class/package it relates to; there is no "general" dumping-ground class |
+| **Silent catch** | `catch (Exception e) {}` — the error is swallowed and leaves no trace | Every exception is either converted to the hierarchy in [error-handling.md](error-handling.md) or rethrown, never silently swallowed |
 
-## Bu liste nasıl büyür
+## How this list grows
 
-Review sırasında (insan ya da agent) yukarıdaki listede olmayan ama tekrar eden bir kötü kalıp fark edilirse, bu dosyaya yeni bir satır olarak eklenir — liste kapalı değil, [code-review-checklist.md](../workflow/code-review-checklist.md) sürecinin bir çıktısıdır.
+If during review (human or agent) a recurring bad pattern is noticed that is not in the list above, it is added to this file as a new row — the list is not closed, it is an output of the [code-review-checklist.md](../workflow/code-review-checklist.md) process.
 
-## İlgili dosyalar
+## Related files
 
 - [architecture-constraints.md](architecture-constraints.md)
-- [database-conventions.md](database-conventions.md) — N+1 detayı
-- [error-handling.md](error-handling.md) — silent catch'in doğrusu
+- [database-conventions.md](database-conventions.md) — N+1 details
+- [error-handling.md](error-handling.md) — the right way to handle silent catch

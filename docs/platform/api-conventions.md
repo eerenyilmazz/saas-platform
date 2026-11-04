@@ -1,57 +1,57 @@
-# API Sözleşmesi
+# API Contract
 
-Tüm modüller aynı REST kurallarını izler — aksi halde her modül kendi tarzında yazar, frontend ve agent'lar için tutarsızlık çıkar.
+All modules follow the same REST rules — otherwise each module writes in its own style, creating inconsistency for the frontend and agents.
 
-## URL yapısı
+## URL structure
 
 ```
-/api/v1/<katman>/<kaynak>
+/api/v1/<layer>/<resource>
 ```
 
-- Platform katmanı: `/api/v1/platform/tenants`, `/api/v1/platform/subscriptions`
+- Platform layer: `/api/v1/platform/tenants`, `/api/v1/platform/subscriptions`
 - Core: `/api/v1/members`, `/api/v1/memberships`, `/api/v1/auth`
-- Modül: `/api/v1/fitness/checkins`, `/api/v1/berber/appointments`
+- Module: `/api/v1/fitness/checkins`, `/api/v1/berber/appointments`
 
-Versiyon (`v1`) baştan itibaren zorunlu — ileride kırıcı değişiklik gerekirse `v2` açılır, `v1` bir süre paralel yaşar.
+The version (`v1`) is mandatory from the start — if a breaking change is needed later, `v2` is opened and `v1` lives in parallel for a while.
 
-## HTTP metodları
+## HTTP methods
 
-Standart REST: `GET` (okuma), `POST` (oluşturma), `PUT`/`PATCH` (güncelleme), `DELETE` (silme — çoğunlukla soft-delete, kod seviyesindeki `deleted_at` kuralı için bkz. [database-conventions.md](database-conventions.md), KVKK kapsamı için bkz. [kvkk-checklist.md](kvkk-checklist.md)).
+Standard REST: `GET` (read), `POST` (create), `PUT`/`PATCH` (update), `DELETE` (delete — mostly soft-delete; for the code-level `deleted_at` rule see [database-conventions.md](database-conventions.md), for the KVKK scope see [kvkk-checklist.md](kvkk-checklist.md)).
 
-## Hata formatı
+## Error format
 
-Tüm hatalar tek bir zarf (envelope) formatında döner — bu formatın kod içinde nasıl üretildiği (exception hiyerarşisi) için bkz. [error-handling.md](error-handling.md):
+All errors are returned in a single envelope format — for how this format is produced in code (the exception hierarchy) see [error-handling.md](error-handling.md):
 
 ```json
 {
   "error": {
     "code": "MEMBERSHIP_EXPIRED",
-    "message": "Üyelik süresi dolmuş.",
+    "message": "The membership has expired.",
     "field": null
   }
 }
 ```
 
-- `code` — makine tarafından okunacak sabit hata kodu (frontend bu koda göre davranış değiştirir, mesaj metnine göre değil)
-- `message` — kullanıcıya gösterilecek Türkçe metin
-- `field` — validasyon hatasıysa hangi alanla ilgili olduğu, yoksa `null`
+- `code` — a fixed, machine-readable error code (the frontend changes behavior based on this code, not on the message text)
+- `message` — the text shown to the user (Turkish, taken from the message bundle — see [localization.md](localization.md); shown in English here for readability)
+- `field` — if it is a validation error, which field it relates to; otherwise `null`
 
-## Sayfalama
+## Pagination
 
-Liste dönen endpoint'ler `page` ve `size` query parametresi alır, yanıt:
+Endpoints that return lists take `page` and `size` query parameters, and the response is:
 
 ```json
 { "content": [...], "page": 0, "size": 20, "totalElements": 134 }
 ```
 
-## Kimlik doğrulama
+## Authentication
 
-`Authorization: Bearer <JWT>` header'ı zorunlu (auth endpoint'leri hariç). JWT içinde `tenant_id` ve `role` claim'leri taşınır — her istekte bu claim'e göre tenant izolasyonu ve yetki kontrolü yapılır (bkz. [tenant-model.md](tenant-model.md)). Token ömrü/yenileme detayı: [security.md](security.md).
+The `Authorization: Bearer <JWT>` header is mandatory (except for auth endpoints). The JWT carries `tenant_id` and `role` claims — on every request, tenant isolation and permission checks are done according to these claims (see [tenant-model.md](tenant-model.md)). Token lifetime/refresh details: [security.md](security.md).
 
-## İlgili dosyalar
+## Related files
 
-- [security.md](security.md) — rate limiting, token ömrü, girdi doğrulama
-- [mobile-compatibility.md](mobile-compatibility.md) — kırıcı değişikliklerin mobil app'i nasıl etkilediği, `v1`/`v2` yaşam döngüsü
-- [error-handling.md](error-handling.md) — exception hiyerarşisi, hata formatının kod içinde üretilmesi
-- [database-conventions.md](database-conventions.md) — migration kuralları, index stratejisi, soft-delete
-- [api-documentation.md](api-documentation.md) — bu sözleşmenin OpenAPI/Swagger'a nasıl yansıdığı
+- [security.md](security.md) — rate limiting, token lifetime, input validation
+- [mobile-compatibility.md](mobile-compatibility.md) — how breaking changes affect the mobile app, the `v1`/`v2` lifecycle
+- [error-handling.md](error-handling.md) — the exception hierarchy, producing the error format in code
+- [database-conventions.md](database-conventions.md) — migration rules, index strategy, soft-delete
+- [api-documentation.md](api-documentation.md) — how this contract is reflected in OpenAPI/Swagger

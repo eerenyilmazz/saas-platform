@@ -1,24 +1,24 @@
-# ADR &lt;numara&gt;: &lt;başlık&gt;
+# ADR &lt;number&gt;: &lt;title&gt;
 
-**Durum:** Kabul edildi / Tartışılıyor / Vazgeçildi
-**Tarih:** &lt;yyyy-aa-gg&gt;
+**Status:** Accepted / Under discussion / Abandoned
+**Date:** &lt;yyyy-mm-dd&gt;
 
-## Bağlam
+## Context
 
-Bu kararı gerektiren durum neydi, hangi alternatifler değerlendirildi?
+What situation required this decision, and which alternatives were evaluated?
 
-## Karar
+## Decision
 
-Ne karar verildi?
+What was decided?
 
-## Sonuç
+## Consequences
 
-Bu kararın getirdiği avantaj/dezavantajlar, ileride gözden geçirilmesi gereken koşul varsa belirt.
+The advantages/disadvantages this decision brings, and any condition under which it should be revisited.
 
-## Geçmiş bağlam (varsa doldur, zorunlu değil)
+## Historical context (fill in if applicable, not mandatory)
 
-Bu bölüm, kararın **neden** alındığını (sadece ne alındığını değil) gelecekteki bir agent/insan için korur — "Sonuç" bölümü kararın etkisini anlatır, bu bölüm kararı **tetikleyen olayı** anlatır. Amaç: iki yıl sonra biri "bu kural gereksiz" diyip geri almaya kalkarsa, hangi somut sorunu çözdüğünü görsün.
+This section preserves **why** the decision was made (not just what was decided) for a future agent/human — "Consequences" describes the effect of the decision, this section describes the **incident that triggered** it. Purpose: if someone two years from now says "this rule is unnecessary" and tries to revert it, they can see which concrete problem it solved.
 
-- **Orijinal olay/bulgu:** Bu kararı tetikleyen somut durum neydi (bir hata, bir dış inceleme, bir gerçek senaryo testi)?
-- **Reddedilen alternatifler:** Hangi başka çözümler değerlendirildi, neden elenmedi?
-- **Başarısızlık senaryosu:** Bu karar alınmasaydı, somut olarak ne ters giderdi?
+- **Original incident/finding:** What concrete situation triggered this decision (a bug, an external review, a real-scenario test)?
+- **Rejected alternatives:** Which other solutions were considered, and why were they ruled out?
+- **Failure scenario:** If this decision had not been made, what concretely would have gone wrong?

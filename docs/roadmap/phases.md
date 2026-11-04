@@ -1,59 +1,59 @@
-# Başlangıç Sırası
+# Starting Order
 
-Sıra önemli — her faz bir öncekinin üzerine kurulur, atlanmaz.
+Order matters — each phase builds on the previous one and none is skipped.
 
-## Faz 0 — Repo iskeleti + CI + altyapı kararları
+## Phase 0 — Repo skeleton + CI + infrastructure decisions
 
-- Monorepo'yu [repo-structure.md](../repo-structure.md)'daki klasör yapısıyla oluştur
-- Spring Boot boş proje (`apps/api`) + React boş proje (`apps/web`) ayağa kaldır — [tech-stack.md](../platform/tech-stack.md)'deki sürümlerle (Java 21, PostgreSQL, Flyway)
-- GitHub Actions'ta boş bir CI pipeline'ı (lint + build) çalışır hale getir
-- `infra/docker` ile yerel geliştirme ortamını (db + api + web) tek komutla ayağa kaldır
-- [api-conventions.md](../platform/api-conventions.md)'deki hata formatı ve URL şemasını iskelete uygula
-- Temel observability'yi kur: yapılandırılmış loglama + hata izleme + `/health` endpoint'i (bkz. [observability.md](../infra/observability.md)) — sonradan eklemek, baştan kurmaktan daha maliyetli
-- Yedekleme job'ını ilk günden kur (bkz. [backup-recovery.md](../infra/backup-recovery.md)) — boş bir DB'yi yedeklemek, dolu bir DB'de yedeklemeyi sonradan kurmaktan kolay
-- Kurulum adımlarını [dev-setup.md](../dev-setup.md)'ye göre doğrula/güncelle
+- Create the monorepo with the folder structure in [repo-structure.md](../repo-structure.md)
+- Bring up an empty Spring Boot project (`apps/api`) + an empty React project (`apps/web`) — with the versions in [tech-stack.md](../platform/tech-stack.md) (Java 21, PostgreSQL, Flyway)
+- Get an empty CI pipeline (lint + build) running in GitHub Actions
+- Bring up the local development environment (db + api + web) with a single command via `infra/docker`
+- Apply the error format and URL scheme from [api-conventions.md](../platform/api-conventions.md) to the skeleton
+- Set up basic observability: structured logging + error tracking + a `/health` endpoint (see [observability.md](../infra/observability.md)) — adding it later is more expensive than setting it up from the start
+- Set up the backup job from day one (see [backup-recovery.md](../infra/backup-recovery.md)) — backing up an empty DB is easier than setting up backups later on a populated DB
+- Verify/update the setup steps according to [dev-setup.md](../dev-setup.md)
 
-## Faz 1 — Core: auth, tenant, roller
+## Phase 1 — Core: auth, tenant, roles
 
-- Tenant tablosu + tenant_id bazlı veri izolasyonu
-- Spring Security ile giriş/rol yönetimi — `tenant_admin`, `tenant_staff` (bkz. [roles-and-access.md](../platform/roles-and-access.md))
-- Üyelik/paket modelini (tablolar, ilişkiler) kur — henüz UI gerekmiyor
-- Audit log mekanizmasını kur (bkz. [audit-log.md](../platform/audit-log.md)) — üyelik/billing tabloları en başından izlenmeli
-- Rate limiting ve token ömrü/yenileme akışını uygula (bkz. [security.md](../platform/security.md))
-- İlk tenant için manuel seed script ([onboarding.md](../platform/onboarding.md)) — platform admin paneli bu fazda yok
-- Tenant izolasyon testini (bkz. [testing-strategy.md](../workflow/testing-strategy.md)) zorunlu CI gate olarak ekle
-- Detay: [modules/core.md](../modules/core.md)
+- Tenant table + tenant_id-based data isolation
+- Login/role management with Spring Security — `tenant_admin`, `tenant_staff` (see [roles-and-access.md](../platform/roles-and-access.md))
+- Set up the membership/package model (tables, relationships) — no UI needed yet
+- Set up the audit log mechanism (see [audit-log.md](../platform/audit-log.md)) — membership/billing tables must be tracked from the very beginning
+- Implement rate limiting and the token lifetime/refresh flow (see [security.md](../platform/security.md))
+- A manual seed script for the first tenant ([onboarding.md](../platform/onboarding.md)) — there is no platform admin panel in this phase
+- Add the tenant isolation test (see [testing-strategy.md](../workflow/testing-strategy.md)) as a mandatory CI gate
+- Details: [modules/core.md](../modules/core.md)
 
-## Faz 2 — Fitness: QR check-in MVP
+## Phase 2 — Fitness: QR check-in MVP
 
-- QR token üretim/yenileme API'si
-- Basit web ekranı: QR göster + görevli tarafında okuma/onay ekranı
-- Giriş logu tablosu — henüz turnike/donanım entegrasyonu yok
-- Detay: [modules/fitness.md](../modules/fitness.md)
+- QR token generation/refresh API
+- A simple web screen: show the QR + a read/approve screen on the staff side
+- Check-in log table — no turnstile/hardware integration yet
+- Details: [modules/fitness.md](../modules/fitness.md)
 
-## Faz 3 — Admin panel
+## Phase 3 — Admin panel
 
-- Üye ekleme/düzenleme, üyelik paketi atama
-- Giriş logu raporu (kim ne zaman geldi)
-- Feature flag ekranı — hangi modül bu tenant'ta açık
+- Add/edit members, assign membership packages
+- Check-in log report (who came when)
+- Feature flag screen — which module is enabled for this tenant
 
-## Faz 4 — Berber: randevu MVP
+## Phase 4 — Barber: appointment MVP
 
-- Randevu takvimi + hizmet süresi modeli
-- Core'daki üyelik/billing altyapısını yeniden kullan, kopyalama
-- Detay: [modules/berber.md](../modules/berber.md)
+- Appointment calendar + service duration model
+- Reuse the membership/billing infrastructure in core, do not copy it
+- Details: [modules/berber.md](../modules/berber.md)
 
-## Faz 5 — Mobil sarmalama
+## Phase 5 — Mobile wrapping
 
-- `apps/web`'i Capacitor ile iOS + Android'e sar
-- Push notification (üyelik bitiş hatırlatma) — [notifications.md](../platform/notifications.md)'deki olay tabanlı yapıyı kullan
-- API versiyonlama/geriye dönük uyumluluk disiplinini uygula (bkz. [mobile-compatibility.md](../platform/mobile-compatibility.md)) — bu fazdan sonra backend'de kırıcı değişiklik artık serbest değil
-- App Store + Play Store başvurusu
+- Wrap `apps/web` for iOS + Android with Capacitor
+- Push notifications (membership expiry reminders) — use the event-based structure in [notifications.md](../platform/notifications.md)
+- Apply API versioning/backward-compatibility discipline (see [mobile-compatibility.md](../platform/mobile-compatibility.md)) — after this phase, breaking changes in the backend are no longer allowed freely
+- App Store + Play Store submission
 
-## Faz 6 — Platform admin paneli (tenant sayısı arttıkça)
+## Phase 6 — Platform admin panel (as the number of tenants grows)
 
-- `apps/web` içinde `/platform` route'u, sadece `platform_owner` rolüyle erişilebilir
-- Tenant listeleme, modül aç/kapa, platform-billing durumu görüntüleme
-- Destek modu (impersonation) arayüzü (bkz. [support-access.md](../platform/support-access.md))
-- Self-servis onboarding formu (bkz. [onboarding.md](../platform/onboarding.md)'deki eşik: ~10 tenant)
-- Detay: [roles-and-access.md](../platform/roles-and-access.md)
+- A `/platform` route inside `apps/web`, accessible only with the `platform_owner` role
+- List tenants, toggle modules, view platform-billing status
+- Support mode (impersonation) interface (see [support-access.md](../platform/support-access.md))
+- Self-service onboarding form (see the ~10-tenant threshold in [onboarding.md](../platform/onboarding.md))
+- Details: [roles-and-access.md](../platform/roles-and-access.md)

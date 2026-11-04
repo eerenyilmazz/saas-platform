@@ -1,26 +1,26 @@
-# API Dokümantasyonu & Frontend Tip Paylaşımı
+# API Documentation & Frontend Type Sharing
 
-[api-conventions.md](api-conventions.md) kuralları tanımlıyor ama bu kuralların **gerçek zamanlı** olarak (kod değiştikçe otomatik güncellenen) nasıl belgeleneceği ve frontend'in backend DTO'larıyla nasıl senkron kalacağı tanımlanmamıştı. Bu olmadan frontend agent'ı (ya da geliştirici) backend'deki değişikliği elle takip etmek zorunda kalır — drift kaçınılmaz olur.
+[api-conventions.md](api-conventions.md) defines the rules, but how these rules are documented **in real time** (updating automatically as code changes) and how the frontend stays in sync with the backend DTOs had not been defined. Without this, the frontend agent (or developer) has to track backend changes by hand — drift becomes inevitable.
 
-## Karar: OpenAPI otomatik üretimi
+## Decision: automatic OpenAPI generation
 
-- Spring Boot, `springdoc-openapi` ile her endpoint'ten otomatik bir OpenAPI (Swagger) şeması üretir — bu şema elle yazılmaz, kod (controller + DTO'lar) değiştikçe otomatik güncellenir.
-- Şema, geliştirme ortamında `/api/v1/docs` altında canlı olarak görüntülenebilir (Swagger UI) — hem insan geliştirici hem coder agent, bir endpoint'i kullanmadan önce burayı referans alır.
+- Spring Boot generates an OpenAPI (Swagger) schema automatically from every endpoint with `springdoc-openapi` — this schema is not written by hand, it updates automatically as the code (controllers + DTOs) changes.
+- The schema can be viewed live in the development environment under `/api/v1/docs` (Swagger UI) — both human developers and the coder agent refer to it before using an endpoint.
 
-## Frontend tip senkronizasyonu
+## Frontend type synchronization
 
-- Frontend (React/TypeScript), backend'in OpenAPI şemasından **otomatik TypeScript tip üretimi** yapan bir araç kullanır (öneri: `openapi-typescript`) — CI'da bir adım olarak, backend değiştiğinde frontend'in tip dosyaları da yeniden üretilir.
-- Bu sayede backend'de bir DTO alanı değişirse (örn. `name` → `fullName`), frontend derleme anında (compile-time) hata verir — çalışma zamanına kadar fark edilmeyen bir tutarsızlık olmaz.
+- The frontend (React/TypeScript) uses a tool that does **automatic TypeScript type generation** from the backend's OpenAPI schema (suggestion: `openapi-typescript`) — as a step in CI, when the backend changes the frontend's type files are regenerated too.
+- This way, if a DTO field changes in the backend (e.g. `name` → `fullName`), the frontend gives an error at compile time — there is no inconsistency that goes unnoticed until runtime.
 
-## Agent workflow ile ilişki
+## Relationship with the agent workflow
 
-Bir coder agent frontend tarafında çalışırken, backend'in gerçek DTO şemasını (varsayım değil, üretilmiş tip dosyasından) kullanır — bu, [agent-pipeline.md](../workflow/agent-pipeline.md)'deki "coder ilgili modülün spec'ini okur" prensibiyle aynı mantık: agent, tahmin etmez, üretilmiş kaynaktan okur.
+When a coder agent works on the frontend side, it uses the backend's real DTO schema (not an assumption, but the generated type file) — the same logic as the "coder reads the relevant module's spec" principle in [agent-pipeline.md](../workflow/agent-pipeline.md): the agent does not guess, it reads from the generated source.
 
-## Kapsam dışı (MVP'de yok)
+## Out of scope (not in the MVP)
 
-- Harici (üçüncü taraf) API tüketicileri için genel API dokümantasyon portalı — MVP'de API sadece kendi frontend/mobil app'imiz tarafından tüketiliyor, dış geliştiricilere açık değil.
+- A general API documentation portal for external (third-party) API consumers — in the MVP the API is consumed only by our own frontend/mobile app and is not open to external developers.
 
-## İlgili dosyalar
+## Related files
 
 - [api-conventions.md](api-conventions.md)
-- [../platform/code-style.md](code-style.md) — DTO isimlendirme kuralları (bu şemanın okunabilirliğini doğrudan etkiler)
+- [../platform/code-style.md](code-style.md) — DTO naming rules (directly affects the readability of this schema)

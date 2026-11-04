@@ -1,37 +1,37 @@
-# Örnek Özellik: Uçtan Uca "Üye Oluştur" (Create Member)
+# Example Feature: End-to-End "Create Member"
 
-50 dosyayı tek tek okumak yerine, bir coder agent'ın (ya da geliştiricinin) **tek bir gerçekçi örneğe** bakarak tüm konvansiyonları görebilmesi için bu doküman var. Aşağıdaki her adım, ilgili dosyadaki kurala göre yazıldı — kod gerçek değil (henüz proje iskeleti yok) ama **desen** gerçek, Faz 1'de birebir bu şekle göre yazılacak.
+Instead of reading 50 files one by one, this document exists so that a coder agent (or developer) can see all the conventions by looking at **a single realistic example**. Every step below is written according to the rule in the relevant file — the code is not real (there is no project skeleton yet), but the **pattern** is real, and Phase 1 will be written exactly in this shape.
 
 ## 0. Issue
 
-[issue-management.md](issue-management.md)'deki şablona göre:
+Using the template in [issue-management.md](issue-management.md):
 
 ```markdown
-Başlık: Üye oluşturma endpoint'i
-Etiketler: module:core, type:feature, priority:high
+Title: Create member endpoint
+Labels: module:core, type:feature, priority:high
 
-## Bağlam
-tenant_admin, kendi işletmesine yeni bir üye (member) ekleyebilmeli — bkz. roadmap Faz 1.
+## Context
+A tenant_admin must be able to add a new member to their own business — see roadmap Phase 1.
 
-## Beklenen davranış
-POST /api/v1/members ile yeni bir member kaydı oluşturulur, KVKK açık rızası alınmadan kayıt oluşmaz.
+## Expected behavior
+POST /api/v1/members creates a new member record; no record is created without KVKK (Turkish personal data protection law) explicit consent.
 
 ## Definition of Done
-- [ ] Kod yazıldı
-- [ ] Test yazıldı
-- [ ] data-model-overview.md güncellendi (member zaten var, değişiklik yok)
+- [ ] Code written
+- [ ] Tests written
+- [ ] data-model-overview.md updated (member already exists, no change)
 ```
 
 ## 1. Branch
 
-[branch-strategy.md](branch-strategy.md)'ye göre: `feature/core-create-member`
+Per [branch-strategy.md](branch-strategy.md): `feature/core-create-member`
 
 ## 2. Migration
 
-[database-conventions.md](../platform/database-conventions.md) kurallarına göre — `member` tablosu zaten [modules/core.md](../modules/core.md)'da tanımlıydı, bu migration onu oluşturur:
+Per the rules in [database-conventions.md](../platform/database-conventions.md) — the `member` table was already defined in [modules/core.md](../modules/core.md); this migration creates it:
 
 ```sql
--- V202607171530__create_member_table.sql (zaman damgalı isimlendirme, bkz. database-conventions.md)
+-- V202607171530__create_member_table.sql (timestamped naming, see database-conventions.md)
 CREATE TABLE member (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenant(id),
@@ -43,14 +43,14 @@ CREATE TABLE member (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- tenant_id zorunlu index (bkz. database-conventions.md)
+-- mandatory tenant_id index (see database-conventions.md)
 CREATE INDEX idx_member_tenant_id ON member(tenant_id);
 CREATE INDEX idx_member_tenant_phone ON member(tenant_id, phone);
 ```
 
 ## 3. Entity
 
-[code-style.md](../platform/code-style.md)'deki isimlendirmeye göre — sonek yok, tekil isim, alan adları İngilizce (bkz. code-style.md "Dil kuralı"):
+Per the naming in [code-style.md](../platform/code-style.md) — no suffix, singular name, field names in English (see the "Language rule" in code-style.md):
 
 ```java
 package com.saas.core.member;
@@ -64,7 +64,7 @@ class Member {
     String phone;
     Instant consentAt;
     UUID userId; // nullable
-    Instant deletedAt; // soft delete, bkz. database-conventions.md
+    Instant deletedAt; // soft delete, see database-conventions.md
 }
 ```
 
@@ -72,13 +72,13 @@ class Member {
 
 ```java
 interface MemberRepository extends JpaRepository<Member, UUID> {
-    // tenant_id filtresi core'daki ortak base repository'de merkezi uygulanır (bkz. tenant-model.md)
+    // the tenant_id filter is applied centrally in the shared base repository in core (see tenant-model.md)
 }
 ```
 
-## 5. Service — iş kuralı burada
+## 5. Service — the business rule lives here
 
-[architecture-constraints.md](../platform/architecture-constraints.md) gereği iş kuralı Controller'da değil, burada:
+Per [architecture-constraints.md](../platform/architecture-constraints.md), the business rule belongs here, not in the Controller:
 
 ```java
 @Service
@@ -86,14 +86,14 @@ class MemberService {
 
     Member create(CreateMemberRequest request, TenantContext ctx) {
         if (request.consentGiven() != true) {
-            // error-handling.md'deki hiyerarşiye göre
-            throw new ValidationException("consentGiven", "KVKK açık rızası olmadan üye oluşturulamaz.");
+            // per the hierarchy in error-handling.md
+            throw new ValidationException("consentGiven", "A member cannot be created without KVKK explicit consent.");
         }
 
         Member member = new Member(ctx.tenantId(), request.name(), request.phone(), Instant.now());
         memberRepository.save(member);
 
-        // event-catalog.md'deki katalogdan, isim uydurulmadı
+        // from the catalog in event-catalog.md, no name was made up
         eventPublisher.publish(new MemberCreated(member.getId(), ctx.tenantId()));
 
         return member;
@@ -101,9 +101,9 @@ class MemberService {
 }
 ```
 
-`MemberCreated` olayı, transaction commit olduktan **sonra** tetiklenir (bkz. [external-integration-resilience.md](../platform/external-integration-resilience.md)) — `core.audit` bu olayı dinleyip [audit-log.md](../platform/audit-log.md)'a yazar, `MemberService`'in kendisi audit_log'a doğrudan yazmaz.
+The `MemberCreated` event is fired **after** the transaction commits (see [external-integration-resilience.md](../platform/external-integration-resilience.md)) — `core.audit` listens to this event and writes to [audit-log.md](../platform/audit-log.md); `MemberService` itself does not write to audit_log directly.
 
-## 6. Controller — sadece devreder
+## 6. Controller — only delegates
 
 ```java
 @RestController
@@ -113,14 +113,14 @@ class MemberController {
     @PostMapping
     MemberResponse create(@Valid @RequestBody CreateMemberRequest request, TenantContext ctx) {
         Member member = memberService.create(request, ctx);
-        return MemberResponse.from(member); // entity asla doğrudan dönülmez, bkz. anti-patterns.md
+        return MemberResponse.from(member); // an entity is never returned directly, see anti-patterns.md
     }
 }
 ```
 
-## 7. DTO'lar
+## 7. DTOs
 
-[code-style.md](../platform/code-style.md)'deki `Request`/`Response` soneki:
+The `Request`/`Response` suffix from [code-style.md](../platform/code-style.md):
 
 ```java
 record CreateMemberRequest(String name, String phone, Boolean consentGiven) {}
@@ -129,35 +129,35 @@ record MemberResponse(UUID id, String name, String phone) {
 }
 ```
 
-## 8. Hata durumu — api-conventions.md'deki zarf otomatik üretilir
+## 8. Error case — the envelope in api-conventions.md is produced automatically
 
-`ValidationException` fırlatılırsa, `core`'daki merkezi `@ControllerAdvice` (bkz. [error-handling.md](../platform/error-handling.md)) bunu otomatik şu yanıta çevirir:
+If a `ValidationException` is thrown, the central `@ControllerAdvice` in `core` (see [error-handling.md](../platform/error-handling.md)) automatically turns it into this response:
 
 ```json
-{ "error": { "code": "VALIDATION_ERROR", "message": "KVKK açık rızası olmadan üye oluşturulamaz.", "field": "consentGiven" } }
+{ "error": { "code": "VALIDATION_ERROR", "message": "A member cannot be created without KVKK explicit consent.", "field": "consentGiven" } }
 ```
 
-Controller ya da Service bu JSON'ı elle üretmez. (`message` alanı [localization.md](../platform/localization.md) gereği Türkçe mesaj dosyasından gelir, kodda literal string yazılmaz — burada okunabilirlik için düz yazıldı.)
+Neither the Controller nor the Service produces this JSON by hand. (Per [localization.md](../platform/localization.md), the `message` field comes from the Turkish message file and no literal string is written in code — it is written as plain text here for readability.)
 
-## 9. Testler
+## 9. Tests
 
-[testing-strategy.md](testing-strategy.md)'deki üç seviye — test metod adları da İngilizce (bkz. code-style.md "Dil kuralı"):
+The three levels in [testing-strategy.md](testing-strategy.md) — test method names are also in English (see the "Language rule" in code-style.md):
 
 ```java
-// Birim testi — MemberServiceTest
+// Unit test — MemberServiceTest
 @Test void throwsWhenConsentNotGiven() { ... }
 
-// Entegrasyon testi — MemberControllerIntegrationTest (Testcontainers + gerçek PostgreSQL)
+// Integration test — MemberControllerIntegrationTest (Testcontainers + real PostgreSQL)
 @Test void postMembersCreatesNewMember() { ... }
 
-// Tenant izolasyon testi (core seviyesinde, zorunlu CI gate)
+// Tenant isolation test (at core level, mandatory CI gate)
 @Test void memberFromAnotherTenantIsNotVisible() { ... }
 ```
 
 ## 10. PR
 
-[pr-and-definition-of-done.md](pr-and-definition-of-done.md)'daki şablonla açılır, `Closes #<issue numarası>`, Definition of Done'daki tüm kutular işaretlenir, [code-review-checklist.md](code-review-checklist.md)'nin 6 kategorisinden geçer.
+Opened with the template in [pr-and-definition-of-done.md](pr-and-definition-of-done.md), `Closes #<issue number>`, every box in the Definition of Done is checked, and it goes through the 6 categories of [code-review-checklist.md](code-review-checklist.md).
 
 ---
 
-Bu akış her yeni endpoint için birebir tekrarlanır — modül değişir (`fitness`, `berber`), katman sırası ve isimlendirme değişmez.
+This flow is repeated exactly for every new endpoint — the module changes (`fitness`, `berber`), the layer order and naming do not.

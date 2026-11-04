@@ -1,41 +1,41 @@
-# Tema & Marka Sistemi
+# Theme & Branding System
 
-[tenant-model.md](tenant-model.md)'deki `settings.branding` alanı (`logo_url`, `color`) bir tenant'ın kendi markasını yansıtabileceğini ima ediyordu ama bunun **frontend'de nasıl uygulanacağı** hiç tanımlanmamıştı. Ayrıca sistemin kendi açık/koyu tema desteği de hiç ele alınmadı.
+The `settings.branding` field (`logo_url`, `color`) in [tenant-model.md](tenant-model.md) implied that a tenant could reflect its own brand, but **how this would be applied on the frontend** had never been defined. The system's own light/dark theme support had not been addressed either.
 
-## İki ayrı tema kavramı — karıştırılmamalı
+## Two separate theme concepts — must not be confused
 
-| Kavram | Ne | Kim kontrol eder |
+| Concept | What | Who controls it |
 |---|---|---|
-| **Açık/koyu mod** | Sistemin kendi görsel modu (light/dark) | Kullanıcının cihaz tercihi |
-| **Tenant markası** | Bir salonun kendi logosu/vurgu rengi | Tenant (`tenant_admin`) |
+| **Light/dark mode** | The system's own visual mode (light/dark) | The user's device preference |
+| **Tenant branding** | A salon's own logo/accent color | The tenant (`tenant_admin`) |
 
-Bunlar birbirinden bağımsız çalışır — bir tenant koyu modda da kendi marka rengini görür.
+These work independently of each other — a tenant also sees its own brand color in dark mode.
 
-## Açık/koyu mod — baştan desteklenir
+## Light/dark mode — supported from the start
 
-- Frontend, CSS custom property (design token) tabanlı bir renk sistemi kullanır — `--color-background`, `--color-text`, `--color-accent` gibi. Bileşenler doğrudan renk kodu değil, bu token'ları referans alır.
-- Koyu mod, kullanıcının işletim sistemi tercihine göre otomatik açılır (`prefers-color-scheme`), ayrıca manuel bir açık/koyu geçiş anahtarı da MVP'de bulunur (küçük bir eklenti, maliyeti düşük).
-- Bu, sonradan eklenmesi zor bir özellik değil ama **baştan token sistemiyle** kurulmazsa (renkler bileşenlere gömülürse) sonradan tüm bileşenleri tek tek taramak gerekir — [adr/0006](../adr/0006-i18n-string-disarida-tutma.md)'daki "ucuza şimdi, pahalıya sonra" ilkesiyle aynı mantık.
+- The frontend uses a color system based on CSS custom properties (design tokens) — such as `--color-background`, `--color-text`, `--color-accent`. Components reference these tokens, not color codes directly.
+- Dark mode turns on automatically according to the user's operating system preference (`prefers-color-scheme`), and a manual light/dark toggle is also included in the MVP (a small addition, low cost).
+- This is not a feature that is hard to add later, but if it is not set up **from the start with a token system** (if colors are embedded in components) all components later have to be scanned one by one — the same logic as the "cheap now, expensive later" principle in [adr/0006](../adr/0006-externalize-strings-from-day-one.md).
 
-## Tenant markası — sınırlı özelleştirme
+## Tenant branding — limited customization
 
-Bir tenant'ın **tüm** renk paletini değiştirmesine izin verilmez (kontrol dışına çıkar, erişilebilirlik/okunabilirlik riski doğar) — sadece tek bir **vurgu rengi** (`--color-accent`) ve logo özelleştirilebilir.
+A tenant is not allowed to change its **entire** color palette (this gets out of control and creates accessibility/readability risk) — only a single **accent color** (`--color-accent`) and the logo can be customized.
 
 ```
 tenant.settings.branding = { logo_url: "...", color: "#2C3E6B" }
 ```
 
-- Bu vurgu rengi, buton/link gibi az sayıda belirli bileşende kullanılır; gövde metni, arka plan gibi temel okunabilirlik alanları sistemin kendi (açık/koyu mod) token'larından gelir, tenant bunları değiştiremez.
-- **Kontrast kontrolü:** Bir tenant kendi rengini girdiğinde, sistem bu rengin arka planla yeterli kontrastı (WCAG AA eşiği) sağlayıp sağlamadığını otomatik kontrol eder — sağlamıyorsa admin panelinde uyarı gösterilir (rengi yine de kullanabilir ama bilerek seçmiş olur).
+- This accent color is used in a small number of specific components such as buttons/links; basic readability areas such as body text and background come from the system's own (light/dark mode) tokens, and the tenant cannot change these.
+- **Contrast check:** When a tenant enters its own color, the system automatically checks whether this color provides sufficient contrast with the background (the WCAG AA threshold) — if it does not, a warning is shown in the admin panel (they can still use the color but would be choosing it knowingly).
 
-## Kapsam dışı (MVP'de yok)
+## Out of scope (not in the MVP)
 
-- Tenant'ın kendi font/logo yerleşimi gibi ileri düzey özelleştirmesi — sadece renk + logo.
-- Tema önizleme editörü — renk kodu admin panelinden düz metin olarak girilir, canlı önizleme v1 sonrası.
+- Advanced customization such as the tenant's own font/logo placement — only color + logo.
+- A theme preview editor — the color code is entered as plain text in the admin panel; live preview is after v1.
 
-## İlgili dosyalar
+## Related files
 
-- [tenant-model.md](tenant-model.md) — `branding` alanının veri modeli
-- [file-storage.md](file-storage.md) — logo yükleme akışı
-- [code-style.md](code-style.md) — frontend bileşen/token isimlendirmesi
-- [accessibility.md](accessibility.md) — kontrast kontrolünün genel WCAG taahhüdüyle ilişkisi
+- [tenant-model.md](tenant-model.md) — the data model of the `branding` field
+- [file-storage.md](file-storage.md) — the logo upload flow
+- [code-style.md](code-style.md) — frontend component/token naming
+- [accessibility.md](accessibility.md) — how the contrast check relates to the general WCAG commitment

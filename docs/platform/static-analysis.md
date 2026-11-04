@@ -1,61 +1,61 @@
-# Statik Kod Analizi
+# Static Code Analysis
 
-[code-style.md](code-style.md)'deki "Lint/format" bölümü sadece biçimlendirmeyi (Checkstyle/Spotless/ESLint) kapsıyordu — bu doküman, kodun **biçimi doğru ama mantığı/güvenliği riskli** olabileceği durumları yakalayan ayrı bir katmanı tanımlar. Çok agent'lı geliştirmede bu katman özellikle önemli: bir agent'ın yazdığı kod biçim olarak kusursuz ama karmaşıklık/güvenlik açısından sorunlu olabilir, bunu bir insanın her PR'da elle yakalaması güvenilir değildir.
+The "Lint/format" section in [code-style.md](code-style.md) covered only formatting (Checkstyle/Spotless/ESLint) — this document defines a separate layer that catches cases where code **is formatted correctly but is risky in logic/security**. In multi-agent development this layer is especially important: code an agent writes may be flawless in format but problematic in complexity/security, and relying on a human to catch this by hand on every PR is not reliable.
 
-## İki ayrı statik analiz türü
+## Two separate kinds of static analysis
 
-| Tür | Araç (öneri) | Ne yakalar |
+| Kind | Tool (suggested) | What it catches |
 |---|---|---|
-| **Kod kalitesi/karmaşıklık** | SonarQube (Community Edition, self-host) ya da SonarCloud | Yüksek cyclomatic complexity, kod tekrarı, ölü kod, potansiyel null pointer |
-| **Güvenlik** | CodeQL (GitHub'da ücretsiz) veya Semgrep | SQL injection, hardcoded secret, güvensiz deserialization gibi kalıplar |
+| **Code quality/complexity** | SonarQube (Community Edition, self-host) or SonarCloud | High cyclomatic complexity, code duplication, dead code, potential null pointers |
+| **Security** | CodeQL (free on GitHub) or Semgrep | Patterns such as SQL injection, hardcoded secrets, insecure deserialization |
 
-Bu, [dependency-management.md](dependency-management.md)'deki Dependabot'tan farklı — Dependabot **üçüncü taraf** kütüphanelerdeki bilinen açıkları tarar, buradaki araçlar **kendi yazdığımız** kodu tarar.
+This is different from Dependabot in [dependency-management.md](dependency-management.md) — Dependabot scans **third-party** libraries for known vulnerabilities, while the tools here scan **the code we write ourselves**.
 
-## CI'a entegrasyon
+## CI integration
 
-- Her PR'da otomatik çalışır (GitHub Actions'ın bir adımı olarak, bkz. [agent-pipeline.md](../workflow/agent-pipeline.md)).
-- Bulgular şiddet derecesine göre ayrılır: **kritik/yüksek** bulgu PR'ı bloklar (reviewer agent'ın [code-review-checklist.md](../workflow/code-review-checklist.md)'deki "sınır ihlali/güvenlik" kategorisiyle aynı ciddiyette ele alınır), **orta/düşük** bulgu yorum olarak bırakılır, blocklamaz.
+- Runs automatically on every PR (as a step in GitHub Actions, see [agent-pipeline.md](../workflow/agent-pipeline.md)).
+- Findings are separated by severity: a **critical/high** finding blocks the PR (handled with the same seriousness as the reviewer agent's "boundary violation/security" category in [code-review-checklist.md](../workflow/code-review-checklist.md)), a **medium/low** finding is left as a comment and does not block.
 
-## Agent'ın SonarCloud bulgularını API ile kontrol etmesi
+## The agent checking SonarCloud findings through the API
 
-Claude'un SonarCloud'a tarayıcıdan giriş yapma yetkisi yok — geçmişte bir PR'ın bulgularını görmek için kullanıcının ekran görüntüsü paylaşması gerekiyordu, bu hem yavaş hem de bulgu detayının (kural, satır, gerekçe) elle aktarılmasını gerektiriyordu. Bunun yerine SonarCloud'un kendi REST API'si kullanılır — login gerektirmez, sadece bir API token'ı yeterlidir.
+Claude has no authority to log in to SonarCloud from a browser — in the past, to see a PR's findings the user had to share a screenshot, which was both slow and required the finding's details (rule, line, rationale) to be transferred by hand. Instead, SonarCloud's own REST API is used — it requires no login, only an API token is enough.
 
-**Kurulum (bir kere, kullanıcının kendi makinesinde):**
+**Setup (once, on the user's own machine):**
 
-1. [sonarcloud.io/account/security](https://sonarcloud.io/account/security)'den bir **User Token** üretilir.
-2. Token, proje reposuna ya da konuşmaya **hiç yazılmadan**, kullanıcının shell profiline (`~/.zshrc`) ortam değişkeni olarak eklenir: `export SONAR_TOKEN="..."`.
-3. Bu, proje sırrı değil — token tamamen kullanıcının kendi makinesinde kalır, git'e karışmaz, CI'da kullanılmaz (CI zaten kendi `SONAR_TOKEN` repo secret'ını kullanıyor, bkz. `build.gradle`'ın `sonar` bloğu).
+1. A **User Token** is generated at [sonarcloud.io/account/security](https://sonarcloud.io/account/security).
+2. The token is added to the user's shell profile (`~/.zshrc`) as an environment variable, **without ever being written** into the project repo or the conversation: `export SONAR_TOKEN="..."`.
+3. This is not a project secret — the token stays entirely on the user's own machine, does not get mixed into git, and is not used in CI (CI already uses its own `SONAR_TOKEN` repo secret, see the `sonar` block of `build.gradle`).
 
-**Kullanım:**
+**Usage:**
 
 ```bash
 curl -s -u "$SONAR_TOKEN:" \
-  "https://sonarcloud.io/api/issues/search?componentKeys=eerenyilmazz_saas-platform&pullRequest=<PR_NUMARASI>&resolved=false&issueStatuses=OPEN,CONFIRMED"
+  "https://sonarcloud.io/api/issues/search?componentKeys=eerenyilmazz_saas-platform&pullRequest=<PR_NUMBER>&resolved=false&issueStatuses=OPEN,CONFIRMED"
 ```
 
-JSON döner (`issues` dizisi) — her bulgunun kuralı, dosya/satırı, şiddeti ve mesajı programatik olarak okunur, ekran görüntüsü/elle aktarım gerekmez.
+JSON is returned (the `issues` array) — each finding's rule, file/line, severity, and message are read programmatically, with no screenshot or manual transfer needed.
 
-**Kapsam:** Bu sadece **veri çekmeyi** otomatikleştirir — hangi bulgunun gerçek olduğu, düzeltilip düzeltilmeyeceği, "Won't Fix" mi "Open" mi kalacağı hâlâ konuşarak (agent'ın önerisi + kullanıcının onayı) karara bağlanır. Bulguları görüp otomatik commit/push yapan tam otonom bir akış (bkz. bir sonraki madde) bilinçli olarak kurulmadı — proje bu ölçekteyken (tek geliştirici, az sayıda PR) gözetimsiz otomasyonun riski, kazandırdığı hızdan daha ağır basıyor.
+**Scope:** This automates only **fetching the data** — which finding is real, whether it will be fixed, whether it stays "Won't Fix" or "Open" is still decided through conversation (the agent's suggestion + the user's approval). A fully autonomous flow that sees the findings and does automatic commit/push (see the next item) was deliberately not set up — at this project scale (a single developer, few PRs) the risk of unsupervised automation outweighs the speed it gains.
 
-## Karmaşıklık eşiği (rehber, katı kural değil)
+## Complexity threshold (guideline, not a strict rule)
 
-- Bir metod/fonksiyonun cyclomatic complexity'si belirli bir eşiği (öneri: 10) aşarsa SonarQube uyarı verir — bu bir "asla aşılamaz" kuralı değil, "muhtemelen bölünmeli" sinyali. Reviewer (agent ya da insan) bağlama göre karar verir.
-- Amaç mekanik bir sayıya uymak değil, agent'ların ürettiği kodun zamanla okunabilir kalmasını sağlamak — özellikle birden fazla agent aynı codebase'e katkı yaptığında, karmaşıklık kontrolsüz büyüyebilir.
+- If a method/function's cyclomatic complexity exceeds a certain threshold (suggestion: 10), SonarQube gives a warning — this is not a "can never be exceeded" rule but a "probably should be split" signal. The reviewer (agent or human) decides based on context.
+- The goal is not to comply with a mechanical number but to keep the code agents produce readable over time — especially when multiple agents contribute to the same codebase, complexity can grow uncontrolled.
 
-## Kabul edilmiş bulguların periyodik gözden geçirilmesi
+## Periodic review of accepted findings
 
-CI/Quality Gate yeni koda karşı otomatik bir kapı, ama **zaten "Won't Fix"/"Safe" olarak işaretlenmiş eski bulgular** için otomatik bir tekrar kontrol yok — bunlar bir kez gerekçelendirilip kapatıldıktan sonra kimse tekrar bakmazsa, gerekçe zamanla geçersiz kalabilir (örn. CSRF'nin "stateless JWT API" gerekçesiyle kapatılması, API bir gün cookie/session tabanlı bir akış eklerse artık doğru olmaktan çıkar).
+The CI/Quality Gate is an automatic gate against new code, but there is no automatic re-check for **old findings already marked "Won't Fix"/"Safe"** — once they have been justified and closed, if nobody looks again, the rationale can become invalid over time (e.g. CSRF being closed with the "stateless JWT API" rationale stops being true if the API one day adds a cookie/session-based flow).
 
-- **Ayda bir**, SonarCloud'da "Won't Fix"/"Safe" durumundaki tüm bulgular tek tek gözden geçirilir: ilgili kod hâlâ aynı mı, gerekçe hâlâ geçerli mi.
-- Gerekçe geçersiz kalmışsa (kod değişmiş, varsayım artık doğru değil) bulgu yeniden "Open"a alınır ve normal PR akışıyla (kod düzeltmesi ya da yeni bir gerekçeyle tekrar kapatma) ele alınır.
-- Bu gözden geçirme ad hoc değil, [pr-and-definition-of-done.md](../workflow/pr-and-definition-of-done.md)'deki gibi tekrarlanan bir bakım görevi sayılır — kimin yapacağı (agent/insan) ekip büyüdükçe netleşir, MVP'de bunu fark eden kişi yapar.
+- **Once a month**, all findings in "Won't Fix"/"Safe" status in SonarCloud are reviewed one by one: is the relevant code still the same, is the rationale still valid.
+- If the rationale has become invalid (the code has changed, the assumption is no longer true) the finding is moved back to "Open" and handled through the normal PR flow (a code fix or closing again with a new rationale).
+- This review is not ad hoc but is considered a recurring maintenance task, like the one in [pr-and-definition-of-done.md](../workflow/pr-and-definition-of-done.md) — who does it (agent/human) will become clearer as the team grows; in the MVP, whoever notices it does it.
 
-## Kapsam dışı (MVP'de yok)
+## Out of scope (not in the MVP)
 
-- Otomatik kod kalitesi "skoru" bazlı PR reddi (örn. "coverage %80'in altına düşerse otomatik red") — [testing-strategy.md](../workflow/testing-strategy.md)'de zaten belirtildiği gibi sayısal bir coverage hedefi koymuyoruz, bu tutarlılığı korur.
+- Automatic PR rejection based on a code quality "score" (e.g. "automatic rejection if coverage drops below 80%") — as already stated in [testing-strategy.md](../workflow/testing-strategy.md), we do not set a numeric coverage target, which keeps this consistent.
 
-## İlgili dosyalar
+## Related files
 
-- [code-style.md](code-style.md) — biçimlendirme katmanı (bu dosyanın kapsamadığı)
-- [dependency-management.md](dependency-management.md) — üçüncü taraf kütüphane taraması
+- [code-style.md](code-style.md) — the formatting layer (which this file does not cover)
+- [dependency-management.md](dependency-management.md) — third-party library scanning
 - [../workflow/code-review-checklist.md](../workflow/code-review-checklist.md)

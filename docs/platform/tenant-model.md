@@ -1,20 +1,20 @@
-# Tenant & Feature Flag Modeli
+# Tenant & Feature Flag Model
 
-Bu doküman `core`'un sağladığı, **tüm modüllerin** üzerine inşa edildiği temel mekanizmayı tanımlar. Yeni bir modül eklerken buradaki kurallara uyman yeterli, tekrar yazmana gerek yok.
+This document defines the basic mechanism `core` provides, on which **all modules** are built. When adding a new module it is enough to follow the rules here; there is no need to rewrite them.
 
 ## Tenant
 
-Her firma (berber salonu, fitness salonu, ileride inşaat firması vb.) bir `tenant` kaydıdır.
+Every company (a barber salon, a fitness gym, a construction company in the future, etc.) is a `tenant` record.
 
 ```
 tenant
 ├── id
 ├── name
-├── settings (JSON)   → aktif modüller + modül bazlı konfigürasyon burada
+├── settings (JSON)   → active modules + per-module configuration live here
 └── created_at
 ```
 
-### settings JSON örneği
+### settings JSON example
 
 ```json
 {
@@ -27,19 +27,19 @@ tenant
 }
 ```
 
-Yeni bir modül eklendiğinde `settings.modules.<modül_adı>` altına kendi konfigürasyon alanlarını ekleyebilirsin — şema esnek, migration gerektirmez.
+When a new module is added you can add its own configuration fields under `settings.modules.<module_name>` — the schema is flexible and requires no migration.
 
-`branding` alanının frontend'de nasıl uygulandığı (renk token'ı, kontrast kontrolü) için bkz. [theming.md](theming.md); `logo_url`'ün nasıl yükleneceği için bkz. [file-storage.md](file-storage.md).
+For how the `branding` field is applied on the frontend (color token, contrast check) see [theming.md](theming.md); for how `logo_url` is uploaded see [file-storage.md](file-storage.md).
 
-## Veri izolasyonu kuralı
+## Data isolation rule
 
-- Her tablo `tenant_id` kolonu taşır.
-- Her sorgu `tenant_id` ile sınırlıdır — bugün bunu tek başına RLS sağlıyor (bkz. [tenant-isolation-enforcement.md](tenant-isolation-enforcement.md)); ortak bir uygulama katmanı filtresi [ADR 0011](../adr/0011-uygulama-katmani-tenant-filtresi-ertelendi.md) gereği şu an kurulu değil.
-- Bir modül, kendi tenant_id'si dışındaki veriye asla erişemez; bu kural test suite'inde (core seviyesinde) doğrulanır.
+- Every table carries a `tenant_id` column.
+- Every query is restricted by `tenant_id` — today this is provided by RLS alone (see [tenant-isolation-enforcement.md](tenant-isolation-enforcement.md)); a shared application-layer filter is not currently in place per [ADR 0011](../adr/0011-app-layer-tenant-filter-deferred.md).
+- A module can never access data outside its own tenant_id; this rule is verified in the test suite (at the core level).
 
-## Feature flag kontrolü — kod seviyesinde uygulama
+## Feature flag check — implementation at the code level
 
-Her modülün controller sınıfı, sınıf düzeyinde bir `@RequiresModule("fitness")` annotation'ı taşır. Bu, `core`'da tanımlı tek bir Spring interceptor tarafından okunur — istek geldiğinde interceptor, ilgili tenant'ın `settings.modules.fitness.enabled` alanını kontrol eder, kapalıysa isteği controller'a hiç ulaştırmadan HTTP 404 döner.
+Each module's controller class carries a class-level `@RequiresModule("fitness")` annotation. This is read by a single Spring interceptor defined in `core` — when a request arrives, the interceptor checks the relevant tenant's `settings.modules.fitness.enabled` field, and if it is off, it returns HTTP 404 without ever letting the request reach the controller.
 
 ```java
 @RestController
@@ -47,12 +47,12 @@ Her modülün controller sınıfı, sınıf düzeyinde bir `@RequiresModule("fit
 class FitnessCheckinController { ... }
 ```
 
-- Bu yaklaşımın avantajı: her controller metodunda tekrar tekrar `if (tenant.hasModule(...))` yazılmaz, kontrol tek bir yerde (interceptor) merkezi kalır — [code-style.md](code-style.md)'deki "ortak mantık tekrar yazılmaz" prensibiyle tutarlı.
-- Yeni bir modül eklerken tek yapılması gereken, o modülün controller'larına doğru `@RequiresModule` değerini vermek — [new-module-checklist.md](../workflow/new-module-checklist.md)'ye bu adım zaten örtük olarak dahildir (paket adı = modül adı = flag adı).
+- The advantage of this approach: `if (tenant.hasModule(...))` is not written over and over in every controller method; the check stays central in one place (the interceptor) — consistent with the principle of "shared logic is not rewritten" in [code-style.md](code-style.md).
+- When adding a new module, the only thing to do is give the right `@RequiresModule` value to that module's controllers — this step is already implicitly included in [new-module-checklist.md](../workflow/new-module-checklist.md) (package name = module name = flag name).
 
-### İnce taneli flag — modül içinde paket bazlı özellik kısıtı
+### Fine-grained flag — a package-based feature restriction within a module
 
-`@RequiresModule` bir modülü tamamen açar/kapar ama [pricing-packaging.md](pricing-packaging.md)'deki kademeler bazen **modül içinde** bir alt özelliği kısıtlar — örn. "QR check-in temel pakette yok, sadece Premium Fitness'te var". Bunun için ayrı, daha ince taneli bir annotation kullanılır:
+`@RequiresModule` turns a module entirely on/off, but the tiers in [pricing-packaging.md](pricing-packaging.md) sometimes restrict a sub-feature **within a module** — e.g. "QR check-in is not in the basic package, only in Premium Fitness". For this a separate, more fine-grained annotation is used:
 
 ```java
 @PostMapping("/checkin")
@@ -60,22 +60,22 @@ class FitnessCheckinController { ... }
 ResponseEntity<?> checkin(...) { ... }
 ```
 
-- `@RequiresModule`, sınıf düzeyinde "bu modül açık mı" sorar; `@RequiresFeature`, metod düzeyinde "bu **spesifik özellik**, tenant'ın paketinde var mı" sorar — ikisi aynı interceptor mekanizmasını paylaşır, sadece kontrol ettikleri `settings` alanı farklı derinlikte (`settings.modules.fitness.enabled` vs `settings.modules.fitness.features.qr_checkin`).
-- Bu ayrımın amacı: bir agent yeni bir premium özellik eklerken bu annotation'ı **unutamaz** — kontrolü koda gömmek, "unutma" ihtimalini insana/agent'a bırakmaktan daha güvenilirdir (bkz. [architecture-constraints.md](architecture-constraints.md)'deki "kısıtlar prosa değil kod/test ile denetlenir" prensibi).
-- Yeni bir `Feature` eklerken [event-catalog.md](event-catalog.md)'deki gibi bir merkezi liste (`Feature` enum, `core`'da tanımlı) kullanılır, her modül kendi string'ini icat etmez.
+- `@RequiresModule` asks at class level "is this module on"; `@RequiresFeature` asks at method level "is this **specific feature** in the tenant's package" — both share the same interceptor mechanism, only the `settings` field they check is at a different depth (`settings.modules.fitness.enabled` vs `settings.modules.fitness.features.qr_checkin`).
+- The purpose of this separation: an agent adding a new premium feature **cannot forget** this annotation — embedding the check in code is more reliable than leaving the possibility of "forgetting" to a human/agent (see the principle "constraints are enforced by code/tests, not prose" in [architecture-constraints.md](architecture-constraints.md)).
+- When adding a new `Feature`, a central list like the one in [event-catalog.md](event-catalog.md) (a `Feature` enum, defined in `core`) is used; each module does not invent its own string.
 
-## Üyelik (membership) — modüller arası ortak kavram
+## Membership — a concept shared across modules
 
-`membership_plan` ve `membership` tabloları `core`'da yaşar, sektöre bakılmaksızın "bir üyenin bir pakete kayıtlı olması" kavramını temsil eder:
+The `membership_plan` and `membership` tables live in `core` and represent the concept of "a member being enrolled in a package" regardless of industry:
 
-| Sektör | "Üyelik" neye karşılık geliyor |
+| Industry | What "membership" corresponds to |
 |---|---|
-| fitness | Aylık/yıllık spor salonu üyeliği |
-| berber | Randevu paketi / sadakat kartı (opsiyonel) |
-| inşaat (örnek) | Proje bazlı hizmet sözleşmesi |
+| fitness | A monthly/annual gym membership |
+| berber | An appointment package / loyalty card (optional) |
+| construction (example) | A project-based service contract |
 
-Yeni bir modül eklerken önce şunu sor: **bu sektörde "üyelik" kavramı neye karşılık geliyor?** Cevap varsa `core.membership`'i kullan, yoksa modülün kendi domain nesnesini tanımla (örn. inşaatta "proje" ayrı bir kavram olabilir, üyelik modeline zorlanmaz).
+When adding a new module, first ask: **what does "membership" correspond to in this industry?** If there is an answer, use `core.membership`; if not, define the module's own domain object (e.g. in construction "project" may be a separate concept and is not forced into the membership model).
 
-## Billing — ortak ödeme/fatura
+## Billing — shared payment/invoicing
 
-Tüm modüller ödeme/fatura işlemleri için `core.billing`'i çağırır. Hiçbir modül kendi ödeme/fatura mantığını yazmaz.
+All modules call `core.billing` for payment/invoicing operations. No module writes its own payment/invoicing logic.

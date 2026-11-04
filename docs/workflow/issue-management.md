@@ -1,69 +1,69 @@
-# Issue Yönetimi
+# Issue Management
 
-[branch-strategy.md](branch-strategy.md) bir görev **branch'e döküldükten sonrasını** anlatıyor — bu doküman görevin **nasıl tanımlandığını** (issue) ve branch'e nasıl bağlandığını tanımlar.
+[branch-strategy.md](branch-strategy.md) describes what happens **after a task has been turned into a branch** — this document defines **how a task is defined** (the issue) and how it is linked to a branch.
 
-## Issue tipleri
+## Issue types
 
-| Tip | Etiket | Ne zaman açılır |
+| Type | Label | When it is opened |
 |---|---|---|
-| `feature` | `type:feature` | Yeni bir özellik/modül parçası |
-| `bug` | `type:bug` | Var olan davranış hatalı |
-| `chore` | `type:chore` | Kod yazımı içermeyen iş (bağımlılık güncelleme, dokümantasyon) |
-| `spike` | `type:spike` | Araştırma/karar gerektiren, henüz koda dökülmeyecek iş — çıktısı genelde bir [ADR](../adr/_template.md) olur |
+| `feature` | `type:feature` | A new feature/module piece |
+| `bug` | `type:bug` | Existing behavior is wrong |
+| `chore` | `type:chore` | Work that involves no code writing (dependency updates, documentation) |
+| `spike` | `type:spike` | Work that needs research/a decision and will not be turned into code yet — its output is usually an [ADR](../adr/_template.md) |
 
-## Zorunlu etiketler
+## Required labels
 
-Her issue en az şu üç etiketi taşır:
+Every issue carries at least these three labels:
 
-- **Modül**: `module:core`, `module:fitness`, `module:berber`, `module:platform` — hangi klasöre dokunulacağını baştan belirtir, [branch-strategy.md](branch-strategy.md)'deki branch isimlendirmesiyle birebir eşleşir.
-- **Öncelik**: `priority:critical` (üretimi etkiliyor), `priority:high`, `priority:normal`, `priority:low`
-- **Tip**: yukarıdaki tablo
+- **Module**: `module:core`, `module:fitness`, `module:berber`, `module:platform` — states up front which folder will be touched, matches the branch naming in [branch-strategy.md](branch-strategy.md) one to one.
+- **Priority**: `priority:critical` (affects production), `priority:high`, `priority:normal`, `priority:low`
+- **Type**: the table above
 
-## Issue şablonu
+## Issue template
 
 ```markdown
-## Bağlam
-Bu iş neden gerekli? (bir kullanıcı şikayeti mi, roadmap maddesi mi, bkz. [roadmap/phases.md](../roadmap/phases.md))
+## Context
+Why is this work needed? (a user complaint, a roadmap item, see [roadmap/phases.md](../roadmap/phases.md))
 
-## Beklenen davranış
-Ne olmalı — mümkünse ilgili modül spec'ine referans ver (örn. [modules/fitness.md](../modules/fitness.md))
+## Expected behavior
+What should happen — if possible, reference the relevant module spec (e.g. [modules/fitness.md](../modules/fitness.md))
 
-## Kapsam dışı
-Bu issue'da yapılmayacak olan (scope creep'i önlemek için)
+## Out of scope
+What will not be done in this issue (to prevent scope creep)
 
-## İlgili dokümanlar (coder agent SADECE bunları okur)
-- [ ] docs/modules/<modül>.md
-- [ ] docs/platform/<varsa ilgili dosyalar>
-- [ ] docs/glossary.md (her zaman)
+## Related documents (the coder agent reads ONLY these)
+- [ ] docs/modules/<module>.md
+- [ ] docs/platform/<related files, if any>
+- [ ] docs/glossary.md (always)
 
 ## Definition of Done
-- [ ] Kod yazıldı
-- [ ] Test yazıldı (bkz. [testing-strategy.md](testing-strategy.md))
-- [ ] İlgili doküman güncellendi (varsa)
+- [ ] Code written
+- [ ] Tests written (see [testing-strategy.md](testing-strategy.md))
+- [ ] Related documentation updated (if any)
 ```
 
-## Context Hydration — agent'a tüm dokümanı değil, daraltılmış bağlamı ver
+## Context Hydration — give the agent narrowed context, not the whole documentation
 
-63 dosyalık doküman büyüdükçe, bir coder agent'ın her görevde hepsini okuması hem maliyetli hem de "context drift" riski taşır (bir agent `fitness` üzerinde çalışırken `core`'daki küçük bir değişikliği gözden kaçırabilir). Bu yüzden **planner rolünün işinin bir parçası**, issue açılırken yukarıdaki "İlgili dokümanlar" listesini doldurmaktır — coder agent'a görev verilirken sadece bu daraltılmış liste + [glossary.md](../glossary.md) (her zaman zorunlu, terim tutarlılığı için) verilir, 63 dosyanın tamamı değil.
+As the 63-file documentation set grows, having a coder agent read all of it on every task is both costly and carries a "context drift" risk (an agent working on `fitness` could miss a small change in `core`). So **part of the planner role's job** is to fill in the "Related documents" list above when opening an issue — when a task is given to the coder agent, only this narrowed list + [glossary.md](../glossary.md) (always mandatory, for term consistency) is provided, not all 63 files.
 
-- Minimum zorunlu bağlam her görevde: ilgili modülün spec dosyası + [glossary.md](../glossary.md) + [code-style.md](../platform/code-style.md).
-- Değişiklik `core`'a dokunuyorsa (ayrı issue olarak açıldığı için, bkz. aşağıdaki "core'a dokunan issue'lar"), o issue'nun bağlam listesi `core.md` + ilgili `platform/*` dosyalarını içerir.
-- Bu liste eksik doldurulursa (agent'ın gerçekte ihtiyaç duyduğu bir dosya listede yoksa) ve bu [code-review-checklist.md](code-review-checklist.md)'de bir tutarsızlık olarak ortaya çıkarsa, planner'ın bir sonraki issue'da bunu düzeltmesi beklenir — bu liste de zamanla öğrenilen bir şey, ilk seferde mükemmel olması gerekmiyor.
+- Minimum mandatory context on every task: the relevant module's spec file + [glossary.md](../glossary.md) + [code-style.md](../platform/code-style.md).
+- If the change touches `core` (opened as a separate issue, see "Issues that touch core" below), that issue's context list includes `core.md` + the relevant `platform/*` files.
+- If this list is filled in incompletely (a file the agent actually needs is not on the list) and this shows up as an inconsistency in [code-review-checklist.md](code-review-checklist.md), the planner is expected to correct it in the next issue — this list is also something learned over time and does not have to be perfect the first time.
 
-## Issue → branch → PR bağlantısı
+## Issue → branch → PR link
 
 ```
-issue #42 (module:fitness, type:feature) → branch: feature/fitness-qr-giris → PR açıklamasında "Closes #42"
+issue #42 (module:fitness, type:feature) → branch: feature/fitness-qr-checkin → "Closes #42" in the PR description
 ```
 
-- Branch adı issue içeriğini yansıtır ama issue numarasını taşımak zorunda değil (branch-strategy.md'deki `feature/<modül>-<özellik>` formatı korunur).
-- PR açıklamasında issue'ya `Closes #<numara>` ile referans verilir — PR merge olunca issue otomatik kapanır, bu da audit/izlenebilirlik sağlar (bir kod değişikliğinin hangi ihtiyaçtan doğduğu her zaman geriye izlenebilir).
+- The branch name reflects the issue content but does not have to carry the issue number (the `feature/<module>-<feature>` format in branch-strategy.md is preserved).
+- The PR description references the issue with `Closes #<number>` — when the PR is merged the issue closes automatically, which provides audit/traceability (which need a code change came from can always be traced back).
 
-## core'a dokunan issue'lar
+## Issues that touch core
 
-Bir issue hem bir modülü hem `core`'u etkiliyorsa (örn. yeni bir modül core'da eksik bir alan istiyor), **iki ayrı issue** açılır: biri `module:core`, biri `module:<ilgili modül>` — [new-module-checklist.md](new-module-checklist.md)'deki "core'a ayrı görev olarak aç" kuralıyla tutarlı, tek PR'da ikisi birden karışmaz.
+If an issue affects both a module and `core` (e.g. a new module wants a field that is missing in core), **two separate issues** are opened: one `module:core`, one `module:<relevant module>` — consistent with the "open as a separate task for core" rule in [new-module-checklist.md](new-module-checklist.md), the two are not mixed in a single PR.
 
-## İlgili dosyalar
+## Related files
 
 - [branch-strategy.md](branch-strategy.md)
 - [pr-and-definition-of-done.md](pr-and-definition-of-done.md)

@@ -1,33 +1,33 @@
-# Branch & PR Akışı
+# Branch & PR Flow
 
-Her görev bir [issue](issue-management.md)'den doğar, kısa ömürlü bir branch'te yaşar.
+Every task originates from an [issue](issue-management.md) and lives on a short-lived branch.
 
-## İsimlendirme
+## Naming
 
 ```
-feature/<modül>-<özellik>     örn: feature/fitness-qr-giris
-fix/<modül>-<konu>            örn: fix/berber-randevu-cakisma
+feature/<module>-<feature>    e.g. feature/fitness-qr-checkin
+fix/<module>-<topic>          e.g. fix/berber-appointment-conflict
 ```
 
-Modül adı branch isminde zorunlu — hem insan hem agent hangi klasöre dokunulacağını isimden anlar. Issue numarasını taşımak zorunlu değil, PR açıklamasında `Closes #<numara>` ile bağlanır (bkz. [issue-management.md](issue-management.md)).
+The module name is mandatory in the branch name — both humans and agents can tell from the name which folder will be touched. Carrying the issue number is not mandatory; it is linked in the PR description with `Closes #<number>` (see [issue-management.md](issue-management.md)).
 
-## Akış
+## Flow
 
-1. **Issue'dan branch aç** — `feature/fitness-qr-giris`
-2. **Coder agent** — kodu yazar, commit atar
-3. **PR açılır** — `main`'e karşı, [pr-and-definition-of-done.md](pr-and-definition-of-done.md)'daki şablonla
-4. **Reviewer agent** — [code-review-checklist.md](code-review-checklist.md)'deki 6 kategoriyi kontrol eder, PR'a yorum bırakır
-5. **Tester agent** — test suite'ini çalıştırır, sonucu raporlar
-6. **İnsan onayı** — sadece kritik değişikliklerde (ödeme, üyelik mantığı, core değişiklikleri)
-7. **Merge → main** — Definition of Done'daki tüm maddeler işaretliyse, branch silinir, issue otomatik kapanır
+1. **Open a branch from the issue** — `feature/fitness-qr-checkin`
+2. **Coder agent** — writes the code, commits
+3. **PR is opened** — against `main`, using the template in [pr-and-definition-of-done.md](pr-and-definition-of-done.md)
+4. **Reviewer agent** — checks the 6 categories in [code-review-checklist.md](code-review-checklist.md), leaves comments on the PR
+5. **Tester agent** — runs the test suite, reports the result
+6. **Human approval** — only for critical changes (payments, membership logic, core changes)
+7. **Merge → main** — if every item in the Definition of Done is checked, the branch is deleted and the issue closes automatically
 
-## Çakışmayı azaltan kural
+## Rule that reduces conflicts
 
-- Branch modül sınırında tutulursa (sadece `modules/fitness`'a dokunan bir branch), paralel çalışan başka bir branch ile çakışmaz.
-- Asıl risk `core`'a dokunan değişiklikler — bunlar hızlı review edilip erken merge edilmeli ki diğer branch'ler "geride" kalmasın.
-- Branch uzun süre açık tutulmaz; `core`'da değişiklik olduysa ilgili branch hemen `main`'i çeker (rebase/merge).
+- If branches are kept within module boundaries (a branch touching only `modules/fitness`), it will not conflict with another branch working in parallel.
+- The real risk is changes that touch `core` — these should be reviewed quickly and merged early so other branches do not fall "behind".
+- Branches are not kept open for long; if `core` has changed, the relevant branch pulls `main` immediately (rebase/merge).
 
-## main koruması
+## main protection
 
-- `main`'e direkt push yasak, sadece PR üzerinden merge.
-- Merge için review + test geçme şartı.
+- Direct pushes to `main` are forbidden, merge only via PR.
+- Merging requires passing review + tests.

@@ -1,31 +1,31 @@
-# Eşzamanlılık & Idempotency
+# Concurrency & Idempotency
 
-Sistemin en yoğun uç noktaları (QR check-in, ödeme kaydı) aynı anda birden fazla istekle karşılaşabilir — bu doküman "aynı işlem iki kez mi kaydedildi" ve "yarış durumu (race condition)" risklerini kapatır.
+The system's busiest endpoints (QR check-in, payment recording) can face multiple requests at the same time — this document closes the risks of "was the same operation recorded twice" and "race conditions".
 
-## QR check-in — çift kayıt riski
+## QR check-in — duplicate record risk
 
-Bir üye QR'ı çok hızlı art arda okutursa (ya da okuyucu cihaz aynı isteği ağ hatası yüzünden iki kez gönderirse), aynı giriş iki kez `checkin_log`'a yazılabilir.
+If a member scans the QR very quickly back to back (or the reader device sends the same request twice because of a network error), the same check-in can be written twice to `checkin_log`.
 
-**Kural:** `checkin_log` kaydı oluşturulmadan önce, aynı `member_id` için son N saniye (öneri: 5 saniye) içinde bir kayıt olup olmadığı kontrol edilir — varsa yeni kayıt açılmaz, mevcut kayıt yanıt olarak döner (idempotent davranış). Bu kontrol veritabanı seviyesinde bir unique constraint ile de desteklenebilir (`member_id` + zaman penceresi).
+**Rule:** Before a `checkin_log` record is created, it is checked whether there is a record for the same `member_id` within the last N seconds (suggestion: 5 seconds) — if so, no new record is opened and the existing record is returned as the response (idempotent behavior). This check can also be supported at the database level with a unique constraint (`member_id` + time window).
 
-## Üyelik dondurma/güncelleme — yarış durumu
+## Membership freeze/update — race condition
 
-İki farklı personel aynı anda aynı üyeliği güncellerse (örn. biri dondurma işlemi yaparken diğeri yenileme yapıyorsa), son yazan diğerinin değişikliğini sessizce ezebilir.
+If two different staff members update the same membership at the same time (e.g. one is freezing while the other is renewing), the last writer can silently overwrite the other's change.
 
-**Kural:** `membership` tablosunda **optimistic locking** kullanılır (JPA `@Version` alanı) — bir güncelleme, kayıt son okunduğundan beri değişmişse reddedilir (HTTP 409, `error.code = CONFLICT`, bkz. [error-handling.md](error-handling.md)), kullanıcıya "bu kayıt başkası tarafından güncellendi, sayfayı yenileyin" mesajı gösterilir.
+**Rule:** **Optimistic locking** is used on the `membership` table (a JPA `@Version` field) — an update is rejected if the record has changed since it was last read (HTTP 409, `error.code = CONFLICT`, see [error-handling.md](error-handling.md)), and the user is shown the message "this record was updated by someone else, please refresh the page".
 
-## Ödeme kaydı — idempotency key
+## Payment record — idempotency key
 
-`tenant_payment` kaydı oluşturan her istek (özellikle ileride otomatik ödeme entegrasyonu geldiğinde, bkz. [billing-model.md](billing-model.md) v1.3), bir **idempotency key** taşır — istemci (frontend ya da ödeme sağlayıcısının webhook'u) aynı isteği ağ hatası nedeniyle tekrar gönderirse, aynı key ile gelen ikinci istek yeni bir kayıt açmaz, ilk sonucu döner.
+Every request that creates a `tenant_payment` record (especially once automatic payment integration arrives in the future, see [billing-model.md](billing-model.md) v1.3) carries an **idempotency key** — if the client (the frontend or the payment provider's webhook) sends the same request again because of a network error, a second request arriving with the same key does not open a new record and returns the first result.
 
-- Şema: `tenant_payment.idempotency_key` (unique, nullable — sadece bu riski taşıyan akışlarda zorunlu).
-- Bu, özellikle ödeme sağlayıcısı entegrasyonlarında (webhook'lar aynı olayı birden fazla kez gönderebilir) sektör standardıdır.
+- Schema: `tenant_payment.idempotency_key` (unique, nullable — mandatory only in flows that carry this risk).
+- This is the industry standard especially for payment provider integrations (webhooks can send the same event more than once).
 
-## Randevu çakışması (berber) — düzeltme: basit unique constraint yetersiz
+## Appointment conflict (barber) — correction: a simple unique constraint is insufficient
 
-**Önceki hata:** Bu bölüm daha önce `(staff_id, tarih/saat)` üzerinde basit bir unique constraint öneriyordu — bu **yanlış/eksik**. Bir unique constraint sadece birebir aynı başlangıç saatini yakalar; 10:00-10:30 ile 10:15-10:45 gibi **örtüşen ama farklı başlangıçlı** iki randevu bu kontrolden sorunsuzca geçer, aynı personelin aynı anda iki yerde olması gerekirdi.
+**Earlier mistake:** This section previously suggested a simple unique constraint on `(staff_id, date/time)` — this is **wrong/incomplete**. A unique constraint catches only an exactly identical start time; two appointments that **overlap but start at different times**, such as 10:00-10:30 and 10:15-10:45, pass this check without a problem, and the same staff member would have to be in two places at once.
 
-**Doğrusu:** PostgreSQL'in **range exclusion constraint**'i (`EXCLUDE USING gist`) kullanılır — bu, iki zaman aralığının (start, end) **örtüştüğü her durumu**, örtüşme birebir eşleşme olmasa bile veritabanı seviyesinde engeller:
+**The right way:** PostgreSQL's **range exclusion constraint** (`EXCLUDE USING gist`) is used — this prevents **every case where two time ranges (start, end) overlap** at the database level, even when the overlap is not an exact match:
 
 ```sql
 ALTER TABLE appointment ADD COLUMN duration_range tstzrange GENERATED ALWAYS AS (tstzrange(start_at, end_at)) STORED;
@@ -34,13 +34,13 @@ ALTER TABLE appointment ADD CONSTRAINT no_overlapping_appointments
     EXCLUDE USING gist (staff_id WITH =, duration_range WITH &&);
 ```
 
-> Bu constraint'in çalışması için `appointment` tablosunun `start_at`/`end_at` (tek bir `scheduled_at` değil) taşıması gerekir — bkz. [modules/berber.md](../modules/berber.md)'deki güncel şema.
+> For this constraint to work, the `appointment` table must carry `start_at`/`end_at` (not a single `scheduled_at`) — see the current schema in [modules/berber.md](../modules/berber.md).
 
-- Uygulama kodu bu constraint ihlalini yakalayıp `ConflictException("BERBER_SLOT_TAKEN", ...)` olarak kullanıcıya döner (bkz. [error-handling.md](error-handling.md)) — aynen önceki tasarımdaki gibi, sadece veritabanı kısıtının kendisi düzeltildi.
-- Bu desen fitness'teki `training_appointment` için de aynı şekilde uygulanır (bir PT'nin aynı saatte iki öğrencisi olamaz).
+- The application code catches a violation of this constraint and returns it to the user as `ConflictException("BERBER_SLOT_TAKEN", ...)` (see [error-handling.md](error-handling.md)) — exactly as in the earlier design, only the database constraint itself was corrected.
+- This pattern is applied the same way to `training_appointment` in fitness (a PT cannot have two students at the same time).
 
-## İlgili dosyalar
+## Related files
 
-- [error-handling.md](error-handling.md) — `ConflictException` → HTTP 409 eşlemesi
-- [database-conventions.md](database-conventions.md) — index/constraint kuralları
+- [error-handling.md](error-handling.md) — the `ConflictException` → HTTP 409 mapping
+- [database-conventions.md](database-conventions.md) — index/constraint rules
 - [../modules/fitness.md](../modules/fitness.md), [../modules/berber.md](../modules/berber.md)

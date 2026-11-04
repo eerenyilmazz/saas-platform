@@ -1,40 +1,40 @@
-# Kod Stili & İsimlendirme Kuralları
+# Code Style & Naming Rules
 
-[dev-setup.md](../dev-setup.md) projeyi nasıl çalıştıracağını anlatıyor, bu dosya **nasıl yazacağını** anlatıyor. Amaç: farklı modüller farklı agent'lar/kişiler tarafından yazılsa bile kod tabanı tek bir elden çıkmış gibi görünsün.
+[dev-setup.md](../dev-setup.md) explains how to run the project; this file explains **how to write it**. The goal: even if different modules are written by different agents/people, the codebase should look as if it came from a single hand.
 
-## Java / Spring Boot katman isimlendirmesi
+## Java / Spring Boot layer naming
 
-| Katman | Sonek | Örnek |
+| Layer | Suffix | Example |
 |---|---|---|
-| REST giriş noktası | `Controller` | `FitnessCheckinController` |
-| İş mantığı (arayüz) | `Service` | `MembershipService` |
-| İş mantığı (uygulama) | `ServiceImpl` | `MembershipServiceImpl` |
-| Veri erişimi | `Repository` | `MemberRepository` |
-| Veritabanı varlığı | (sonek yok, tekil isim) | `Member`, `Membership` |
-| İstek gövdesi | `Request` | `CreateMemberRequest` |
-| Yanıt gövdesi | `Response` | `MemberResponse` |
-| Entity ↔ DTO dönüşümü | `Mapper` | `MemberMapper` |
-| Domain olayı | `Event` | `MembershipExpiringEvent` (bkz. [notifications.md](notifications.md)) |
+| REST entry point | `Controller` | `FitnessCheckinController` |
+| Business logic (interface) | `Service` | `MembershipService` |
+| Business logic (implementation) | `ServiceImpl` | `MembershipServiceImpl` |
+| Data access | `Repository` | `MemberRepository` |
+| Database entity | (no suffix, singular name) | `Member`, `Membership` |
+| Request body | `Request` | `CreateMemberRequest` |
+| Response body | `Response` | `MemberResponse` |
+| Entity ↔ DTO conversion | `Mapper` | `MemberMapper` |
+| Domain event | `Event` | `MembershipExpiringEvent` (see [notifications.md](notifications.md)) |
 
-Sınıf adları [glossary.md](../glossary.md)'deki terimleri birebir kullanır — `Customer` değil `Member`, `Business` değil `Tenant`.
+Class names use the terms in [glossary.md](../glossary.md) exactly — `Member`, not `Customer`; `Tenant`, not `Business`.
 
-`Request`/`Response` her zaman Java record'u olarak yazılır (immutable, alan listesi = constructor) — `LoginRequest`, `LoginResponse` gibi. `Request`'lerde alan doğrulaması Bean Validation (`@Valid`, `@NotBlank`, `@Email` vb.) ile yapılır, controller/servis içinde elle `if` kontrolü yazılmaz.
+`Request`/`Response` are always written as Java records (immutable, field list = constructor) — like `LoginRequest`, `LoginResponse`. Field validation in `Request`s is done with Bean Validation (`@Valid`, `@NotBlank`, `@Email`, etc.); manual `if` checks are not written inside controllers/services.
 
-## Controller — asla iş mantığı yok
+## Controller — never any business logic
 
-Bir controller sadece HTTP isteğini bağlar (deserialize/validate) ve ilgili servis metoduna devreder — key üretimi, koşul kontrolü, try/catch ile durum kaydı gibi hiçbir mantık controller'da yazılmaz. Bunun testi basit: bir controller metodu MockMvc olmadan, düz bir servis çağrısı olarak okunabilmeli (genelde tek satır `return xService.y(request);`).
+A controller only binds the HTTP request (deserialize/validate) and delegates to the relevant service method — no logic such as key generation, condition checks, or recording state with try/catch is written in the controller. The test for this is simple: a controller method should be readable, without MockMvc, as a plain service call (generally a single line `return xService.y(request);`).
 
-## Servis katmanı — interface + impl ayrımı
+## Service layer — interface + impl separation
 
-Her iş mantığı servisi bir **arayüz** (`MembershipService`) ve onu uygulayan bir **sınıf** (`MembershipServiceImpl`, `@Service` burada) olarak yazılır. Controller (ve servisi çağıran her yer) sadece arayüze bağımlı olur — Spring hangi implementasyonu enjekte edeceğini bilir, çağıran taraf bunu bilmek zorunda değildir.
+Every business logic service is written as an **interface** (`MembershipService`) and a **class** implementing it (`MembershipServiceImpl`, `@Service` goes here). The controller (and everywhere that calls the service) depends only on the interface — Spring knows which implementation to inject, and the caller does not need to know.
 
-- Bu ayrım her `@Component`/`@Configuration` sınıfı için değil, **iş akışı taşıyan servisler** için geçerlidir (`AuthenticationService`, `MembershipService` gibi). Altyapı sınıfları (`JwtAuthenticationFilter`, `TenantAwareDataSource`, bir `@ConfigurationProperties` sınıfı) tek bir somut sınıf olarak kalır — bunlara interface eklemek gereksiz bir katman olur.
-- İmplementasyon şişmeye başlarsa (tek bir sınıf birden fazla sorumluluk taşımaya başlarsa) ayrı, odaklı yardımcı sınıflara bölünür (bkz. [architecture-constraints.md](architecture-constraints.md)) — `ServiceImpl` her şeyi kendi içinde çözen bir "tanrı sınıf" olmaz.
-- Gerekirse repository doğrudan `ServiceImpl` içinden çağrılır, ayrı bir soyutlamaya gerek yoktur.
+- This separation applies not to every `@Component`/`@Configuration` class but to **services that carry a business workflow** (such as `AuthenticationService`, `MembershipService`). Infrastructure classes (`JwtAuthenticationFilter`, `TenantAwareDataSource`, a `@ConfigurationProperties` class) remain a single concrete class — adding an interface to these would be an unnecessary layer.
+- If the implementation starts to bloat (if a single class starts to carry multiple responsibilities), it is split into separate, focused helper classes (see [architecture-constraints.md](architecture-constraints.md)) — a `ServiceImpl` does not become a "god class" that solves everything inside itself.
+- If necessary the repository is called directly from within `ServiceImpl`; no separate abstraction is needed.
 
-## Lombok — constructor/getter boilerplate'i azaltır
+## Lombok — reduces constructor/getter boilerplate
 
-Bağımlılık enjeksiyonu yapan sınıflarda (servis impl'leri, controller'lar, config sınıfları) constructor elle yazılmaz, `@RequiredArgsConstructor` (Lombok) kullanılır; alanlar `private final` kalır. Getter'lar için `@Getter` kullanılır.
+In classes that do dependency injection (service impls, controllers, config classes) the constructor is not written by hand; `@RequiredArgsConstructor` (Lombok) is used, and the fields stay `private final`. `@Getter` is used for getters.
 
 ```java
 @Service
@@ -48,21 +48,21 @@ public class MembershipServiceImpl implements MembershipService {
 }
 ```
 
-`@RequiredArgsConstructor` sadece constructor'ın **tek işi** alanları atamaksa kullanılır. Constructor'ın ek bir işi varsa (bir statik köprü alanını doldurmak, `super(...)` çağırmak, bir doğrulama yapmak) elle yazılır — Lombok bunu üretemez, zorlamak yerine constructor elle kalır (bkz. `AuditWriter`, `TenantAwareDataSource`).
+`@RequiredArgsConstructor` is used only when the constructor's **only job** is assigning fields. If the constructor has an additional job (filling a static bridge field, calling `super(...)`, doing a validation) it is written by hand — Lombok cannot generate this, and instead of forcing it the constructor stays by hand (see `AuditWriter`, `TenantAwareDataSource`).
 
-- JPA entity'lerinde `@Getter` kullanılır, ama **iş anlamı taşıyan özel constructor'lar elle yazılır** (`new User(tenantId, email, passwordHash, role)` gibi) — Lombok'un `@AllArgsConstructor`/`@RequiredArgsConstructor`'ı bunları üretemez, çünkü genelde tüm alanları değil anlamlı bir alt kümesini alırlar. JPA'nın istediği boş constructor için `@NoArgsConstructor(access = AccessLevel.PROTECTED)` kullanılır.
-- Entity'lerde `@Setter` kullanılmaz — durum değişiklikleri (`freeze()`, `changeRole()` gibi) adı iş kuralını anlatan metodlarla yapılır, generic bir setter ile değil.
+- `@Getter` is used on JPA entities, but **special constructors that carry business meaning are written by hand** (like `new User(tenantId, email, passwordHash, role)`) — Lombok's `@AllArgsConstructor`/`@RequiredArgsConstructor` cannot generate these, because they usually take a meaningful subset of fields rather than all of them. For the empty constructor JPA requires, `@NoArgsConstructor(access = AccessLevel.PROTECTED)` is used.
+- `@Setter` is not used on entities — state changes (like `freeze()`, `changeRole()`) are made with methods whose names express the business rule, not with a generic setter.
 
-## Config değerleri — asla kod içine gömülmez
+## Config values — never hardcoded
 
-Ortam/dağıtıma göre değişebilecek ya da ayarlanabilir olması makul her değer (süre, eşik, URL, secret) bir `@ConfigurationProperties` sınıfına (`JwtProperties`, `LoginRateLimitProperties` gibi) yazılır, `application*.properties`'ten okunur — koda `static final` bir sabit olarak veya `@Value` ile dağınık şekilde gömülmez. İhtiyacı olan sınıf bu properties sınıfını enjekte eder.
+Every value that may vary by environment/deployment or that it is reasonable to make configurable (durations, thresholds, URLs, secrets) is written into a `@ConfigurationProperties` class (like `JwtProperties`, `LoginRateLimitProperties`) and read from `application*.properties` — it is not embedded in code as a `static final` constant or scattered through `@Value`. The class that needs it injects this properties class.
 
-- Her mantıksal grup (JWT, rate limiting, ...) kendi properties sınıfını alır — tek bir dev "AppConfig" sınıfında toplamak, [decision-tree.md](decision-tree.md)'nin "erken soyutlama" uyarısına ters düşer ve gruplar arası ilgisiz alanları bir araya getirir.
-- Gerçekten sabit olan, ortamdan asla etkilenmeyen değerler (örn. bir şifre üretim algoritmasının karakter kümesi) bu kuralın dışındadır — ayrım [decision-tree.md](decision-tree.md)'deki "gerçek kolon mu, esnek alan mı" mantığına benzer: **"biri bunu tenant/ortam bazında değiştirmek ister mi?"** sorusu evetse config'e gider, hayırsa kod sabiti kalır.
+- Each logical group (JWT, rate limiting, ...) gets its own properties class — gathering them in a single giant "AppConfig" class goes against the "early abstraction" warning in [decision-tree.md](decision-tree.md) and brings together unrelated fields across groups.
+- Values that are truly constant and never affected by the environment (e.g. the character set of a password generation algorithm) are outside this rule — the distinction is similar to the "real column or flexible field" logic in [decision-tree.md](decision-tree.md): if the answer to **"would someone want to change this per tenant/environment?"** is yes, it goes to config; if no, it stays a code constant.
 
-## Mapper — Entity ↔ DTO dönüşümü elle yazılmaz
+## Mapper — Entity ↔ DTO conversion is not written by hand
 
-Bir controller/servis bir entity'yi doğrudan bir `Response`'a çeviriyorsa (alan alan kopyalama) bu kod bir `XMapper` arayüzüne çıkarılır, MapStruct ile üretilir — Lombok constructor/getter'ı nasıl üretiyorsa, MapStruct de bu dönüşüm kodunu aynı mantıkla (annotation processor, derleme zamanında) üretir.
+If a controller/service converts an entity directly into a `Response` (copying field by field), this code is extracted to an `XMapper` interface, generated with MapStruct — just as Lombok generates the constructor/getter, MapStruct generates this conversion code with the same logic (an annotation processor, at compile time).
 
 ```java
 @Mapper(componentModel = "spring")
@@ -71,53 +71,53 @@ public interface MemberMapper {
 }
 ```
 
-- `componentModel = "spring"` zorunlu — bu olmadan üretilen sınıf bir Spring bean'i olmaz, `@Autowired` edilemez.
-- Mapper, ilgili modülün `mapper/` klasöründe yaşar (`com.saas.core.membership.mapper.MemberMapper` gibi) — [code-style.md](code-style.md)'nin paket içi klasörleme deseninin bir uzantısı.
-- Basit, tek yönlü (entity → response) dönüşümler için yeterlidir; `Request` → entity gibi request tarafında da ihtiyaç çıkarsa aynı arayüze `toEntity(...)` metodu eklenir, ayrı bir sınıfa çıkarılmaz.
-- MapStruct, Lombok'un ürettiği getter'ları okuyabilmek için `lombok-mapstruct-binding` bağımlılığına (build.gradle) ihtiyaç duyar — bu olmadan iki annotation processor'ın çalışma sırası garanti edilmez.
+- `componentModel = "spring"` is mandatory — without it the generated class is not a Spring bean and cannot be `@Autowired`.
+- The mapper lives in the relevant module's `mapper/` folder (like `com.saas.core.membership.mapper.MemberMapper`) — an extension of the in-package foldering pattern of [code-style.md](code-style.md).
+- It is enough for simple, one-directional (entity → response) conversions; if a need arises on the request side too, like `Request` → entity, a `toEntity(...)` method is added to the same interface and is not extracted to a separate class.
+- To be able to read the getters Lombok generates, MapStruct needs the `lombok-mapstruct-binding` dependency (build.gradle) — without it the order in which the two annotation processors run is not guaranteed.
 
-## Dil kuralı — kod her zaman İngilizce
+## Language rule — code and documentation are always English
 
-**Kod (sınıf adı, alan adı, kolon adı, değişken adı, endpoint path'i) her zaman İngilizce yazılır — istisnasız.** Dokümanların Türkçe olması (bu proje Türkiye pazarı için yazılıyor) koda yansımaz; kod ile doküman **farklı dillerdedir**, bu bilinçli bir ayrım:
+**Code (class names, field names, column names, variable names, endpoint paths) and all documentation are written in English — without exception.** The only things that are not English are the user-facing strings that are deliberately kept outside the code (see [localization.md](localization.md)):
 
-- **Türkçe:** Bu dosyalar, PR açıklamaları, issue'lar, code review yorumları, kullanıcıya gösterilen metin ([localization.md](localization.md)'deki `tr.json`/`messages_tr.properties` içeriği).
-- **İngilizce:** Sınıf/metod/değişken adı, veritabanı tablo/kolon adı, API endpoint path'i, commit mesajı, kod içi (varsa) yorum.
+- **Turkish (user-facing text only):** the contents of `tr.json`/`messages_tr.properties` (see [localization.md](localization.md)) — the product currently targets the Turkish market.
+- **English:** class/method/variable names, database table/column names, API endpoint paths, commit messages, comments in code (if any), these documents, PR descriptions, issues, code review comments.
 
-| Yanlış (Türkçe kod) | Doğru (İngilizce kod) |
+| Wrong (Turkish-language identifier) | Right (English identifier) |
 |---|---|
 | `ad`, `telefon` | `name`, `phone` |
-| `süre`, `tarih` | `duration`, `date` / `scheduled_at` |
-| `başlangıç`/`bitiş` | `start_at`/`end_at` |
-| `renk`, `yöntem`, `tutar` | `color`, `method`, `amount` |
+| `sure`, `tarih` | `duration`, `date` / `scheduled_at` |
+| `baslangic`/`bitis` | `start_at`/`end_at` |
+| `renk`, `yontem`, `tutar` | `color`, `method`, `amount` |
 | `durum`, `sebep` | `status`, `reason` |
 
-**Retrofit notu:** Bu dosya seti daha önce birkaç yerde örnek SQL/JSON'da Türkçe kolon adı (`ad`, `telefon`, `kaynak_tipi` vb.) kullanmıştı — bunlar bu kuralla tutarlı hale getirilmek üzere güncelleniyor (bkz. [modules/core.md](../modules/core.md), [data-model-overview.md](../data-model-overview.md)). `kaynak_tipi`/`kaynak_id` artık `source_type`/`source_id`.
+**Retrofit note:** Earlier versions of this documentation set used Turkish column names in a few example SQL/JSON snippets (such as the Turkish words for name, phone, and source type) — these have been brought in line with this rule (see [modules/core.md](../modules/core.md), [data-model-overview.md](../data-model-overview.md)). The old Turkish source-type/source-id fields are now `source_type`/`source_id`.
 
-## Loglama disiplini — gereksiz log yok
+## Logging discipline — no unnecessary logs
 
-[../infra/observability.md](../infra/observability.md) yapılandırılmış loglamayı tanımlıyordu ama "ne zaman log ATILMAZ" hiç söylenmemişti. Kural: **her satır bir maliyettir** (disk, arama gürültüsü, PII sızıntı riski artışı) — bir log satırı ancak şu durumlarda yazılır:
+[../infra/observability.md](../infra/observability.md) defined structured logging, but "when NOT to log" had never been stated. The rule: **every line is a cost** (disk, search noise, increased PII leak risk) — a log line is written only in these cases:
 
-- Bir hata/beklenmeyen durum oluştuğunda (`WARN`/`ERROR`)
-- Bir iş kararı sonradan izlenmesi gereken bir yan etki ürettiğinde (örn. ödeme durumu değişti) — bu zaten çoğunlukla [audit-log.md](audit-log.md)'un işi, ayrıca `INFO` logu **tekrar** yazılmaz
-- Bir dış servis çağrısının başlangıcı/sonucu (bkz. [external-integration-resilience.md](external-integration-resilience.md))
+- When an error/unexpected situation occurs (`WARN`/`ERROR`)
+- When a business decision produces a side effect that needs to be traced later (e.g. payment status changed) — this is mostly the job of [audit-log.md](audit-log.md) already, and an `INFO` log is **not** written again in addition
+- The start/result of an external service call (see [external-integration-resilience.md](external-integration-resilience.md))
 
-**Yasak:** "buraya geldi" tarzı debug amaçlı `INFO`/`DEBUG` logları production koduna commit edilmez (geliştirme sırasında kullanılıp PR'a girmeden temizlenir); bir döngü/loop içinde her iterasyonda log atılmaz; zaten `audit_log` tablosuna yazılan bir olay ayrıca application log'una da tekrar yazılmaz (aynı bilginin iki farklı yerde tutulması, hangisinin doğru olduğu sorusunu doğurur).
+**Banned:** "got here" style debug `INFO`/`DEBUG` logs are not committed into production code (they are used during development and cleaned up before they enter the PR); a log is not emitted on every iteration inside a loop; an event already written to the `audit_log` table is not written again to the application log (keeping the same information in two different places raises the question of which is correct).
 
-## Yorum disiplini — varsayılan yorumsuz
+## Comment discipline — comment-free by default
 
-**Varsayılan: yorum yazılmaz.** İyi isimlendirilmiş bir sınıf/metod/değişken zaten "ne yaptığını" anlatır — bunu tekrar eden bir yorum (`// üyeyi kaydet` diye `saveMember()` çağrısının üstüne) gürültüdür, silinmesi gerekir.
+**Default: no comments are written.** A well-named class/method/variable already tells "what it does" — a comment that repeats this (a `// save the member` above a `saveMember()` call) is noise and must be deleted.
 
-Bir yorum **sadece** şu durumlarda yazılır — hiçbiri "ne yapıyor" değil, hepsi "neden böyle" sorusuna cevap verir:
+A comment is written **only** in these cases — none of them is "what does it do", all answer "why is it this way":
 
-- Kodun **neden** böyle yazıldığını açıklamak gerekiyorsa (örn. "burada `@Lazy` kullanılmıyor, bkz. [architecture-constraints.md](architecture-constraints.md)")
-- Sezgiye aykırı bir iş kuralı/kısıt uygulanıyorsa (örn. neden bir `ConflictException` yerine sessizce mevcut kayıt dönüldüğü, bkz. [concurrency-and-idempotency.md](concurrency-and-idempotency.md) idempotency mantığı)
-- Bilinen bir sınırlamanın/geçici çözümün (workaround) gerekçesi belirtiliyorsa
+- If it is necessary to explain **why** the code was written this way (e.g. "`@Lazy` is not used here, see [architecture-constraints.md](architecture-constraints.md)")
+- If a counter-intuitive business rule/constraint is applied (e.g. why the existing record is silently returned instead of a `ConflictException`, see the idempotency logic in [concurrency-and-idempotency.md](concurrency-and-idempotency.md))
+- If the rationale of a known limitation/workaround is stated
 
-Ne yaptığını anlatan, çağrıyı/dosyayı/PR'ı referans veren ya da "TODO" bırakıp asla dönülmeyen yorumlar [code-review-checklist.md](../workflow/code-review-checklist.md)'de bulgu olarak işaretlenir.
+Comments that describe what is done, reference the call/file/PR, or leave a "TODO" that is never returned to are flagged as findings in [code-review-checklist.md](../workflow/code-review-checklist.md).
 
-## Paket içi klasörleme
+## In-package foldering
 
-Her modül kendi içinde aynı alt yapıyı tekrarlar:
+Each module repeats the same substructure within itself:
 
 ```
 com.saas.modules.fitness/
@@ -128,37 +128,37 @@ com.saas.modules.fitness/
 └── dto/
 ```
 
-Bu, bir agent'ın "fitness modülünde nereye kod yazacağını" başka bir modülün yapısına bakarak tahmin edebilmesini sağlar.
+This lets an agent guess "where to write code in the fitness module" by looking at another module's structure.
 
-## Commit mesaj formatı
+## Commit message format
 
 ```
-<modül>: <kısa özet, emir kipi>
+<module>: <short summary, imperative mood>
 
-örn:
-fitness: QR token üretim endpoint'i eklendi
-core: membership dondurma mantığı düzeltildi
+e.g.:
+fitness: add QR token generation endpoint
+core: fix membership freeze logic
 ```
 
-- İlk kelime her zaman etkilenen modül (`core`, `fitness`, `berber`, `platform`, `infra`, `docs`).
-- Özet emir kipinde ("eklendi" değil "ekle" de olur, ekip içinde hangisi seçilirse tutarlı kullanılsın — öneri: geçmiş zaman, çünkü "bu commit ne yaptı"yı anlatır).
+- The first word is always the affected module (`core`, `fitness`, `berber`, `platform`, `infra`, `docs`).
+- The summary is in the imperative mood — whichever is chosen should be used consistently within the team.
 
 ## Frontend (React/TypeScript)
 
-- Bileşen dosyaları `PascalCase.tsx` (`MemberList.tsx`), hook'lar `useXxx.ts` (`useMembership.ts`).
-- API çağrıları için tek bir `api/` klasörü, her modülün kendi dosyası (`api/fitness.ts`, `api/berber.ts`) — [api-conventions.md](api-conventions.md)'deki URL şemasını birebir yansıtır.
-- Renk, tarih, metin doğrudan yazılmaz — bkz. [theming.md](theming.md) (renk token'ları) ve [localization.md](localization.md) (metin/tarih dosyaları).
+- Component files are `PascalCase.tsx` (`MemberList.tsx`), hooks are `useXxx.ts` (`useMembership.ts`).
+- A single `api/` folder for API calls, with each module's own file (`api/fitness.ts`, `api/berber.ts`) — mirrors the URL scheme in [api-conventions.md](api-conventions.md) one to one.
+- Colors, dates, and text are not written directly — see [theming.md](theming.md) (color tokens) and [localization.md](localization.md) (text/date files).
 
-## Lint/format (biçim katmanı)
+## Lint/format (formatting layer)
 
-- Backend: Spring Boot standart Checkstyle/Spotless kuralları (proje iskeletiyle birlikte Faz 0'da kurulur).
-- Frontend: ESLint + Prettier, varsayılan kurallar — özelleştirme ihtiyacı çıkarsa buraya eklenir.
-- CI, lint hatası olan PR'ı reddeder (bkz. [workflow/agent-pipeline.md](../workflow/agent-pipeline.md) — reviewer agent bunu otomatik yakalar).
-- Biçimin ötesinde (karmaşıklık, güvenlik) statik analiz katmanı ayrı: bkz. [static-analysis.md](static-analysis.md).
+- Backend: the standard Spring Boot Checkstyle/Spotless rules (set up in Phase 0 along with the project skeleton).
+- Frontend: ESLint + Prettier, default rules — if a need for customization arises it is added here.
+- CI rejects a PR with lint errors (see [workflow/agent-pipeline.md](../workflow/agent-pipeline.md) — the reviewer agent catches this automatically).
+- Beyond formatting (complexity, security) the static analysis layer is separate: see [static-analysis.md](static-analysis.md).
 
-## İlgili dosyalar
+## Related files
 
-- [glossary.md](../glossary.md) — isimlendirmede kullanılacak terimler
-- [dev-setup.md](../dev-setup.md) — yerel ortamda lint/format çalıştırma
-- [static-analysis.md](static-analysis.md) — kod kalitesi/güvenlik statik analizi
+- [glossary.md](../glossary.md) — the terms to use in naming
+- [dev-setup.md](../dev-setup.md) — running lint/format in the local environment
+- [static-analysis.md](static-analysis.md) — code quality/security static analysis
 - [theming.md](theming.md), [localization.md](localization.md)

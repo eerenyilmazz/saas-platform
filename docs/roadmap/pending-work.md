@@ -1,36 +1,36 @@
-# Beklemede Olan İşler
+# Pending Work
 
-Kod tarafında henüz yapılamamış, ama açık bir iş kararına ([open-questions.md](../open-questions.md)) bağlı olduğu için bekleyen maddelerin listesi. Amaç: "bu neden yapılmadı" sorusuna her seferinde yeniden analiz etmeden, tek bakışta cevap verebilmek.
+A list of items that could not yet be done on the code side but are waiting on an open business decision ([open-questions.md](../open-questions.md)). The goal: to be able to answer the question "why wasn't this done" at a glance, without redoing the analysis each time.
 
-## Faz 0 — altyapı
+## Phase 0 — infrastructure
 
-| Madde | Durum | Bağlı olduğu karar | Detay |
+| Item | Status | Decision it depends on | Details |
 |---|---|---|---|
-| Yapılandırılmış loglama (JSON, `tenant_id`/`request_id`) | Başlanmadı | [open-questions.md](../open-questions.md) madde 8 (hosting) | [../infra/observability.md](../infra/observability.md) §1 |
-| Hata izleme (Sentry) | Başlanmadı | [open-questions.md](../open-questions.md) madde 8 (hosting) | [../infra/observability.md](../infra/observability.md) §2 |
-| Yedekleme job'ı (`pg_dump`/yönetilen servis) | Başlanmadı | [open-questions.md](../open-questions.md) madde 8 (hosting) | [../infra/backup-recovery.md](../infra/backup-recovery.md) |
-| Uptime/alerting (dış izleme servisi) | Başlanmadı | [open-questions.md](../open-questions.md) madde 8 (hosting) | [../infra/observability.md](../infra/observability.md) §3 |
+| Structured logging (JSON, `tenant_id`/`request_id`) | Not started | [open-questions.md](../open-questions.md) item 8 (hosting) | [../infra/observability.md](../infra/observability.md) §1 |
+| Error tracking (Sentry) | Not started | [open-questions.md](../open-questions.md) item 8 (hosting) | [../infra/observability.md](../infra/observability.md) §2 |
+| Backup job (`pg_dump`/managed service) | Not started | [open-questions.md](../open-questions.md) item 8 (hosting) | [../infra/backup-recovery.md](../infra/backup-recovery.md) |
+| Uptime/alerting (external monitoring service) | Not started | [open-questions.md](../open-questions.md) item 8 (hosting) | [../infra/observability.md](../infra/observability.md) §3 |
 
-## Faz 1 — core
+## Phase 1 — core
 
-| Madde | Durum | Bağlı olduğu karar | Detay |
+| Item | Status | Decision it depends on | Details |
 |---|---|---|---|
-| Feature-flag servis mantığı (`Tenant.settings` oku/yaz) | Devam ediyor | — (bağımlılık yok, hemen bitirilebilir) | [../platform/tenant-model.md](../platform/tenant-model.md) |
-| SMS bildirim kanalı (gerçek gönderim) | Soyutlama (`NotificationChannel`) yazılabilir, gerçek gönderim çalışmaz | [open-questions.md](../open-questions.md) madde 3 (SMS sağlayıcı) | [../platform/notifications.md](../platform/notifications.md) |
+| Feature-flag service logic (read/write `Tenant.settings`) | In progress | — (no dependency, can be finished right away) | [../platform/tenant-model.md](../platform/tenant-model.md) |
+| SMS notification channel (actual sending) | The abstraction (`NotificationChannel`) can be written, actual sending does not work | [open-questions.md](../open-questions.md) item 3 (SMS provider) | [../platform/notifications.md](../platform/notifications.md) |
 
-## Kod dışı, iş kararı bekleyen
+## Non-code, waiting on a business decision
 
-| Madde | Bağlı olduğu karar | Etkisi |
+| Item | Decision it depends on | Impact |
 |---|---|---|
-| Domain/şirket adı | [open-questions.md](../open-questions.md) madde 1 | `com.saas.*` paket adları yer tutucu; netleşmesi gecikirse yüzlerce dosyada tek seferlik toplu rename gerekir |
-| Hosting hedefi | [open-questions.md](../open-questions.md) madde 8 | Yukarıdaki dört Faz 0 maddesini + CI/CD'nin deploy adımını bloklar |
-| Onboarding modeli onayı | [open-questions.md](../open-questions.md) madde 4 | Seed script'in "manuel onboarding" varsayımının iş planıyla uyuştuğunun teyidi |
+| Domain/company name | [open-questions.md](../open-questions.md) item 1 | The `com.saas.*` package names are placeholders; if this is settled late, a one-time bulk rename across hundreds of files is needed |
+| Hosting target | [open-questions.md](../open-questions.md) item 8 | Blocks the four Phase 0 items above + the deploy step of CI/CD |
+| Onboarding model approval | [open-questions.md](../open-questions.md) item 4 | Confirmation that the seed script's "manual onboarding" assumption matches the business plan |
 
-## Bu dosya nasıl güncellenir
+## How this file is updated
 
-Bir madde tamamlandığında ya da ilgili [open-questions.md](../open-questions.md) maddesi "çözüldü" olarak işaretlendiğinde bu tablodan silinir. Çelişki olursa `open-questions.md`/[phases.md](phases.md)/ilgili modül spec'i geçerlidir — bu dosya sadece bir takip/özet katmanıdır, otoriter kaynak değildir.
+When an item is completed, or when the relevant [open-questions.md](../open-questions.md) item is marked "resolved", it is removed from this table. In case of a conflict, `open-questions.md`/[phases.md](phases.md)/the relevant module spec prevails — this file is only a tracking/summary layer, not an authoritative source.
 
-## İlgili dosyalar
+## Related files
 
 - [open-questions.md](../open-questions.md)
 - [phases.md](phases.md)

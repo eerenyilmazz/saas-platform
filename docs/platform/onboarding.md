@@ -1,29 +1,29 @@
-# Onboarding — Yeni Tenant Nasıl Açılır
+# Onboarding — How a New Tenant Is Opened
 
-## MVP kararı: manuel onboarding
+## MVP decision: manual onboarding
 
-İlk tenant'lar (pilot salonlar) **kendi kendine kayıt olmaz** — sen/ekibin açar. Sebep: erken aşamada müşteri sayısı az, self-servis kayıt formu + doğrulama + ödeme entegrasyonu kurmak, henüz kimsenin kullanmayacağı bir özelliğe erken yatırım olur.
+The first tenants (pilot salons) **do not sign up on their own** — you/your team open them. Reason: in the early stage the number of customers is small, and building a self-service sign-up form + verification + payment integration would be early investment in a feature nobody will use yet.
 
-## MVP akışı
+## MVP flow
 
-1. Satış görüşmesi (sen ↔ salon sahibi) — hangi modüller isteniyor, kaç kullanıcı
-2. `platform_owner` bir seed script/SQL ile `tenant` kaydı açar: ad, aktif modüller (`tenant.settings.modules`), platform_subscription planı
-3. `tenant_admin` kullanıcısı oluşturulur, giriş bilgileri e-posta ile gönderilir
-4. Salon sahibi giriş yapar, kendi işletme bilgilerini (çalışma saati, hizmet/paket tanımları) tamamlar — bu kısım UI üzerinden, `core` ve ilgili modülün ekranlarından yapılır
-5. Salon sahibi kendi personelini (`tenant_staff`) ekler
+1. Sales conversation (you ↔ salon owner) — which modules are wanted, how many users
+2. The `platform_owner` opens a `tenant` record with a seed script/SQL: name, active modules (`tenant.settings.modules`), platform_subscription plan
+3. A `tenant_admin` user is created, and the login details are sent by email
+4. The salon owner logs in and completes their business information (working hours, service/package definitions) — this part is done through the UI, from the screens of `core` and the relevant module
+5. The salon owner adds their own staff (`tenant_staff`)
 
-## Ne zaman self-servis'e geçilir
+## When to move to self-service
 
-Tenant sayısı arttıkça (öngörülen eşik: ~10 tenant, adım 2-3'ün manuel yapılması operasyonel yük haline geldiğinde) bir kayıt formu + platform admin panelinden onay akışı eklenir — bkz. [roadmap/versions.md](../roadmap/versions.md) v1.2.
+As the number of tenants grows (the anticipated threshold: ~10 tenants, when doing steps 2-3 manually becomes an operational burden), a sign-up form + an approval flow from the platform admin panel is added — see [roadmap/versions.md](../roadmap/versions.md) v1.2.
 
-## Kapsam dışı (MVP'de yok)
+## Out of scope (not in the MVP)
 
-- Kredi kartıyla anlık kayıt/ödeme
-- Otomatik deneme süresi (trial) yönetimi
-- E-posta doğrulama akışı (manuel onboarding'de gerek yok, sen zaten doğrudan iletişimdesin)
+- Instant sign-up/payment by credit card
+- Automatic trial period management
+- Email verification flow (not needed in manual onboarding, since you are already in direct contact)
 
-## İlgili dosyalar
+## Related files
 
-- [roles-and-access.md](roles-and-access.md) — platform_owner'ın tenant açma yetkisi
-- [billing-model.md](billing-model.md) — platform_subscription kaydı
-- [tenant-offboarding.md](tenant-offboarding.md) — tenant ayrılmak istediğinde tersi akış
+- [roles-and-access.md](roles-and-access.md) — the platform_owner's authority to open tenants
+- [billing-model.md](billing-model.md) — the platform_subscription record
+- [tenant-offboarding.md](tenant-offboarding.md) — the reverse flow when a tenant wants to leave

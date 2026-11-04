@@ -1,41 +1,41 @@
-# Fiyatlandırma Paket Yapısı
+# Pricing Package Structure
 
-> Bu dosya paket **yapısını** tanımlar, gerçek rakamları değil — rakamlar tamamen senin pazarlama kararın (bkz. [open-questions.md](../open-questions.md) madde 7). Burada sadece `platform_subscription` modelinin (bkz. [billing-model.md](billing-model.md)) hangi kademelere ayrılacağı tasarlanıyor.
+> This file defines the package **structure**, not the real figures — the figures are entirely your marketing decision (see [open-questions.md](../open-questions.md) item 7). Here only the tiers that the `platform_subscription` model (see [billing-model.md](billing-model.md)) will be divided into are designed.
 
-## Kademe mantığı: modül bazlı, taban + ek modül
+## Tier logic: module-based, base + add-on module
 
-İki yaygın SaaS paketleme modeli var: (a) sabit kademeler (Başlangıç/Büyüme/Kurumsal, her biri sabit özellik seti) veya (b) taban ücret + seçtiğin her modül için ek ücret. Bu platform zaten modüler tasarlandığı için **(b) taban + ek modül** modeli mimariyle daha tutarlı — bir salon sahibi sadece ihtiyacı olan modülü alır, gereksiz özellik için ödeme yapmaz.
+There are two common SaaS packaging models: (a) fixed tiers (Starter/Growth/Enterprise, each with a fixed feature set) or (b) a base fee + an additional fee for each module you choose. Because this platform is already designed to be modular, the **(b) base + add-on module** model is more consistent with the architecture — a salon owner takes only the module they need and does not pay for unnecessary features.
 
-## Önerilen yapı
+## Proposed structure
 
-| Bileşen | Ne içerir |
+| Component | What it includes |
 |---|---|
-| **Taban ücret** | `core` her zaman dahil — auth, tenant, üyelik motoru, tenant-billing, bildirim (temel SMS kotası), 1 kullanıcı (tenant_admin) |
-| **Modül eki** | Her aktif modül (`fitness`, `berber`, ileride yeni dikeyler) ayrı bir ek ücret |
-| **Kullanıcı eki** (opsiyonel) | `tenant_staff` sayısı belirli bir eşiği geçerse ek ücret — küçük salonlar için muhtemelen gereksiz, büyüdükçe anlamlı |
+| **Base fee** | `core` is always included — auth, tenant, membership engine, tenant-billing, notifications (basic SMS quota), 1 user (tenant_admin) |
+| **Module add-on** | Each active module (`fitness`, `berber`, new verticals in the future) has a separate add-on fee |
+| **User add-on** (optional) | An extra fee if the number of `tenant_staff` exceeds a certain threshold — probably unnecessary for small salons, meaningful as they grow |
 
-## Örnek paket iskeleti (rakamsız)
+## Example package skeleton (without figures)
 
 ```
-Taban paket:
-  - core (auth, üyelik, tenant-billing, temel bildirim)
-  - 1 modül dahil (fitness VEYA berber)
-  - 3 kullanıcıya kadar
+Base package:
+  - core (auth, membership, tenant-billing, basic notifications)
+  - 1 module included (fitness OR berber)
+  - up to 3 users
 
-+ Ek modül: her ilave modül için ek ücret
-+ Ek kullanıcı: 3'ten sonra her kullanıcı için ek ücret (opsiyonel, MVP'de olmayabilir)
++ Add-on module: an extra fee for each additional module
++ Add-on user: an extra fee for each user after the 3rd (optional, may not exist in the MVP)
 ```
 
-## MVP'de basitleştirme
+## Simplification in the MVP
 
-`platform_subscription` tablosu (bkz. [billing-model.md](billing-model.md)) şu an sadece `plan` (serbest metin/JSON, hangi modüller dahil) ve `monthly_fee` alanlarını tutuyor — bu, karmaşık bir "kademe motoru" kurmadan, ilk birkaç tenant'ta fiyatı manuel esnek tutmaya izin veriyor. Kademelerin katı kurallara (örn. otomatik faturalama) bağlanması, otomatik ödemeye geçildiğinde (bkz. [roadmap/versions.md](../roadmap/versions.md) v1.3) anlamlı olur.
+The `platform_subscription` table (see [billing-model.md](billing-model.md)) currently holds only the `plan` (free text/JSON, which modules are included) and `monthly_fee` fields — this allows keeping the price manually flexible for the first few tenants without building a complex "tier engine". Tying the tiers to strict rules (e.g. automatic invoicing) becomes meaningful when moving to automatic payment (see [roadmap/versions.md](../roadmap/versions.md) v1.3).
 
-## Rakiplerle karşılaştırma — kimin işi
+## Comparison with competitors — whose job
 
-Türkiye'deki benzer SaaS'ların (salon/randevu yönetimi yapan) fiyatlarını araştırıp taban+modül rakamlarını belirlemek [open-questions.md](../open-questions.md) madde 7'de senin kararına bırakıldı — bu doküman sadece yapıyı hazırlıyor, rakamı doldurmak kalan iş.
+Researching the prices of similar SaaS products in Turkey (those doing salon/appointment management) and determining the base+module figures was left to your decision in [open-questions.md](../open-questions.md) item 7 — this document only prepares the structure; filling in the figures is the remaining work.
 
-## İlgili dosyalar
+## Related files
 
-- [billing-model.md](billing-model.md) — `platform_subscription` veri modeli
-- [onboarding.md](onboarding.md) — paket seçiminin ne zaman/nasıl yapıldığı
-- [open-questions.md](../open-questions.md) — gerçek rakamlar
+- [billing-model.md](billing-model.md) — the `platform_subscription` data model
+- [onboarding.md](onboarding.md) — when/how the package selection is made
+- [open-questions.md](../open-questions.md) — the real figures

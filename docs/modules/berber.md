@@ -1,28 +1,28 @@
-# Modül: berber
+# Module: berber (barber)
 
-**Paket:** `com.saas.modules.berber.*`
-**Bağımlılık:** `core` (auth, tenant, membership, billing)
-**Öncelik:** 3
+**Package:** `com.saas.modules.berber.*`
+**Dependency:** `core` (auth, tenant, membership, billing)
+**Priority:** 3
 
-## Sorumluluklar
+## Responsibilities
 
-- **Randevu takvimi** — tarih/saat, personel bazlı müsaitlik
-- **Hizmet tanımları** — hizmet süresi, fiyat
-- **Hizmet + ürün satışı** — `core.billing` üzerinden, ayrı bir ödeme mantığı yazılmaz
+- **Appointment calendar** — date/time, availability per staff member
+- **Service definitions** — service duration, price
+- **Service + product sales** — through `core.billing`, no separate payment logic is written
 
-## Veri modeli (taslak)
+## Data model (draft)
 
-- `service` — id, tenant_id, name, duration (dakika), price
+- `service` — id, tenant_id, name, duration (minutes), price
 - `appointment` — id, tenant_id, staff_id (→ `core.user`), member_id (→ `core.member`), service_id, start_at, end_at, status
 - `staff_availability` — staff_id, day_of_week, start_time, end_time
 
-> Terim notu: bu tablo daha önce `customer_id` kullanıyordu — `core`'daki `member` tablosuyla tutarlı olması için `member_id`'ye çevrildi (bkz. [glossary.md](../glossary.md)). `appointment` tek bir `scheduled_at` yerine `start_at`/`end_at` taşır — randevu çakışma kısıtının (bkz. [concurrency-and-idempotency.md](../platform/concurrency-and-idempotency.md)) bir zaman aralığı üzerinden çalışabilmesi için gerekli.
+> Terminology note: this table previously used `customer_id` — it was changed to `member_id` to be consistent with the `member` table in `core` (see [glossary.md](../glossary.md)). `appointment` carries `start_at`/`end_at` instead of a single `scheduled_at` — this is needed so that the appointment conflict constraint (see [concurrency-and-idempotency.md](../platform/concurrency-and-idempotency.md)) can work over a time range.
 
-## Fitness ile ortak nokta
+## Commonalities with fitness
 
-Fitness ve berber ikisi de "randevu/üyelik + yan ürün satışı" modeline oturur. `core.membership` ve `core.billing` ortak kullanılır; farklı olan sadece hizmetin şekli (QR check-in vs randevu rezervasyonu).
+Fitness and barber both fit the "appointment/membership + side product sales" model. `core.membership` and `core.billing` are shared; the only difference is the shape of the service (QR check-in vs appointment booking).
 
-## Kapsam dışı
+## Out of scope
 
-- QR/giriş-çıkış mantığı fitness modülüne özgü, burada yok.
-- Üyelik paketi/ödeme tanımı → `core`'da.
+- QR/check-in-check-out logic is specific to the fitness module, it is not here.
+- Membership package/payment definition → in `core`.

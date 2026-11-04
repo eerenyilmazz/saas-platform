@@ -1,14 +1,14 @@
-# Sürüm Yol Haritası
+# Release Roadmap
 
-Monorepo'da tek uygulama sürümü tutulur (SemVer, `v0.x` yayın öncesi, `v1.0` ilk canlı sürüm). Modüller ayrı ayrı versiyonlanmaz — olgunluk durumu bir etiketle (deneysel / beta / kararlı) takip edilir, her production deploy'da git tag atılır.
+A single application version is maintained in the monorepo (SemVer, `v0.x` before release, `v1.0` the first live release). Modules are not versioned separately — maturity is tracked with a label (experimental / beta / stable), and a git tag is created on every production deploy.
 
-| Sürüm | Kapsam | Modül | Durum |
+| Version | Scope | Module | Status |
 |---|---|---|---|
-| v0.1 | Repo iskeleti, core (auth + tenant) | core | planlandı |
-| v0.2 | Fitness — QR check-in MVP | fitness | planlandı |
-| v0.3 | Admin panel — üye/üyelik yönetimi | core | planlandı |
-| v0.4 | Berber — randevu MVP | berber | planlandı |
-| v1.0 | İlk canlı sürüm (web, tek/birkaç tenant pilot, manuel onboarding) | core | planlandı |
-| v1.1 | Capacitor mobil sarmalama, store çıkışı | fitness | planlandı |
-| v1.2 | Platform admin paneli + self-servis onboarding | platform | planlandı |
-| v1.3 | Otomatik ödeme entegrasyonu (platform-billing + tenant-billing) | platform | planlandı |
+| v0.1 | Repo skeleton, core (auth + tenant) | core | planned |
+| v0.2 | Fitness — QR check-in MVP | fitness | planned |
+| v0.3 | Admin panel — member/membership management | core | planned |
+| v0.4 | Barber — appointment MVP | berber | planned |
+| v1.0 | First live release (web, one/a few pilot tenants, manual onboarding) | core | planned |
+| v1.1 | Capacitor mobile wrapping, store launch | fitness | planned |
+| v1.2 | Platform admin panel + self-service onboarding | platform | planned |
+| v1.3 | Automatic payment integration (platform-billing + tenant-billing) | platform | planned |

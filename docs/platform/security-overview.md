@@ -1,33 +1,33 @@
-# Güvenlik — Tek Sayfalık Genel Bakış
+# Security — One-Page Overview
 
-> Bu dosya bir **kaynak değil, indeks**tir (bkz. [data-model-overview.md](../data-model-overview.md)'nin aynı deseni). Güvenlik 8 ayrı dosyaya dağılmış durumda — burada hepsi tek yerde listeleniyor ki bir agent/insan "güvenlik açısından neyi kontrol etmeliyim" sorusuna tek dosyadan cevap bulsun.
+> This file is an **index, not a source** (the same pattern as [data-model-overview.md](../data-model-overview.md)). Security is spread across 8 separate files — here they are all listed in one place so that an agent/human can find the answer to "what should I check from a security standpoint" in a single file.
 
-## Katman katman güvenlik
+## Security, layer by layer
 
-| Katman | Risk | Çözüm | Dosya |
+| Layer | Risk | Solution | File |
 |---|---|---|---|
-| Veritabanı | Bir tenant'ın verisi başka tenant'a sızar | Row-Level Security (RLS) | [tenant-isolation-enforcement.md](tenant-isolation-enforcement.md), [ADR 0008](../adr/0008-row-level-security.md) |
-| Uygulama belleği (RAM) | RLS'in koruyamadığı katman — static cache/singleton/ThreadLocal üzerinden tenant verisi sızması | Static mutable state yasağı, tenant_id'li cache anahtarı, ThreadLocal temizliği | [architecture-constraints.md](architecture-constraints.md) "Bellek seviyesinde tenant izolasyonu" |
-| API | Brute-force, kötüye kullanım, DoS | Rate limiting, JWT token ömrü/yenileme | [security.md](security.md) |
-| Kod (kendi yazdığımız) | SQL injection, hardcoded secret, güvensiz deserialization | Statik analiz (CodeQL/Semgrep) | [static-analysis.md](static-analysis.md) |
-| Bağımlılıklar (üçüncü taraf) | Bilinen CVE'li kütüphane | Dependabot taraması + merkezi BOM (versiyon şişmesi/jar hell önleme) | [dependency-management.md](dependency-management.md) |
-| Loglama | PII'nin düz metin loglanması | Telefon/ad maskeleme | [../infra/observability.md](../infra/observability.md) "PII maskeleme" |
-| Hata mesajları | Stack trace/iç detay sızıntısı | Merkezi `@ControllerAdvice`, kullanıcıya asla iç detay dönülmez | [error-handling.md](error-handling.md) |
-| Erişim/yetki | Yetkisiz tenant/rol erişimi | RLS + rol hiyerarşisi + loglu destek modu | [roles-and-access.md](roles-and-access.md), [support-access.md](support-access.md) |
-| Kişisel veri (KVKK) | Rıza olmadan veri işleme/bildirim | Açık rıza alanı, silme endpoint'i, saklama süresi | [kvkk-checklist.md](kvkk-checklist.md) |
-| İzlenebilirlik | "Kim ne yaptı" sorusuna cevap yok | Audit log (kritik tablolarda zorunlu) | [audit-log.md](audit-log.md) |
+| Database | One tenant's data leaks to another tenant | Row-Level Security (RLS) | [tenant-isolation-enforcement.md](tenant-isolation-enforcement.md), [ADR 0008](../adr/0008-row-level-security.md) |
+| Application memory (RAM) | The layer RLS cannot protect — tenant data leaking through a static cache/singleton/ThreadLocal | Ban on static mutable state, tenant_id-keyed cache, ThreadLocal cleanup | [architecture-constraints.md](architecture-constraints.md) "In-memory tenant isolation" |
+| API | Brute-force, abuse, DoS | Rate limiting, JWT token lifetime/refresh | [security.md](security.md) |
+| Code (what we write ourselves) | SQL injection, hardcoded secrets, insecure deserialization | Static analysis (CodeQL/Semgrep) | [static-analysis.md](static-analysis.md) |
+| Dependencies (third-party) | Library with a known CVE | Dependabot scanning + centralized BOM (preventing version bloat/jar hell) | [dependency-management.md](dependency-management.md) |
+| Logging | PII logged in plain text | Phone/name masking | [../infra/observability.md](../infra/observability.md) "PII masking" |
+| Error messages | Stack trace/internal detail leakage | Central `@ControllerAdvice`, internal details are never returned to the user | [error-handling.md](error-handling.md) |
+| Access/permissions | Unauthorized tenant/role access | RLS + role hierarchy + logged support mode | [roles-and-access.md](roles-and-access.md), [support-access.md](support-access.md) |
+| Personal data (KVKK) | Data processing/notification without consent | Explicit consent field, deletion endpoint, retention period | [kvkk-checklist.md](kvkk-checklist.md) |
+| Traceability | No answer to "who did what" | Audit log (mandatory on critical tables) | [audit-log.md](audit-log.md) |
 
-## Her yeni PR'da kontrol edilecekler (özet)
+## To check on every new PR (summary)
 
-Bu liste [code-review-checklist.md](../workflow/code-review-checklist.md)'nin 1. ve 3. kategorilerinin (sınır ihlali, güvenlik) somut bir kısayolu:
+This list is a concrete shortcut to categories 1 and 3 (boundary violation, security) of [code-review-checklist.md](../workflow/code-review-checklist.md):
 
-- [ ] Yeni tablo → `tenant_id` + RLS aktif mi?
-- [ ] Yeni cache/static alan → anahtar `tenant_id` ile mi başlıyor, mutable singleton field var mı?
-- [ ] Yeni endpoint → rate limiting gerektiren bir kategoriye giriyor mu (public/login benzeri)?
-- [ ] Yeni bağımlılık → insan onaylı mı, BOM'a mı eklendi?
-- [ ] Yeni log satırı → PII düz metin mi yazılıyor?
-- [ ] Yeni kişisel veri alanı → KVKK kapsamına giriyor mu, `consent_at` kontrolü var mı?
+- [ ] New table → are `tenant_id` + RLS enabled?
+- [ ] New cache/static field → does the key start with `tenant_id`, is there a mutable singleton field?
+- [ ] New endpoint → does it fall into a category that requires rate limiting (public/login-like)?
+- [ ] New dependency → is it human-approved, was it added to the BOM?
+- [ ] New log line → is PII written in plain text?
+- [ ] New personal data field → does it fall within the scope of KVKK, is there a `consent_at` check?
 
-## İlgili dosyalar
+## Related files
 
-Yukarıdaki tablodaki her satır zaten kendi dosyasına link veriyor — bu dosya sadece bir harita, detay her zaman kaynak dosyada.
+Each row in the table above already links to its own file — this file is only a map, the details are always in the source file.

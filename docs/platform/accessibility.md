@@ -1,32 +1,32 @@
-# Erişilebilirlik (Accessibility)
+# Accessibility
 
-[theming.md](theming.md) sadece tenant'ın seçtiği marka renginin kontrastını kontrol ediyordu — bu doküman ürünün genelinde asgari bir erişilebilirlik taahhüdünü tanımlar.
+[theming.md](theming.md) only checked the contrast of the brand color the tenant chooses — this document defines a minimum accessibility commitment across the product as a whole.
 
-## MVP kararı: WCAG AA asgari, otomatik denetim
+## MVP decision: WCAG AA minimum, automated checking
 
-Kapsamlı bir erişilebilirlik programı (ekran okuyucu testleri, kullanıcı testleri) MVP için aşırı yatırım — bunun yerine **ucuza baştan kurulabilecek, otomatikleştirilebilir asgari kurallar**:
+A comprehensive accessibility program (screen reader tests, user tests) is overinvestment for the MVP — instead, **minimum rules that can be set up cheaply from the start and can be automated**:
 
-- **Kontrast:** [theming.md](theming.md)'deki tenant renk kontrolüne ek olarak, sistemin kendi (açık/koyu mod) token'ları WCAG AA eşiğini (4.5:1 normal metin, 3:1 büyük metin) baştan karşılayacak şekilde seçilir.
-- **Klavye navigasyonu:** Tüm interaktif elemanlar (buton, form alanı, link) sadece klavye ile ulaşılabilir/kullanılabilir olmalı — fare zorunlu olmayan bir gereksinim, özellikle admin panelinde (personel günlük kullanır) önemli.
-- **Semantik HTML:** Frontend bileşenleri (React) anlamlı HTML etiketleri kullanır (`<button>` yerine `onClick`'li `<div>` yazılmaz) — ekran okuyucu desteğinin temel ön koşulu, ekstra çaba gerektirmez.
-- **Form etiketleri:** Her form alanının bir `<label>`'ı olur, sadece placeholder metin yeterli sayılmaz.
+- **Contrast:** In addition to the tenant color check in [theming.md](theming.md), the system's own (light/dark mode) tokens are chosen to meet the WCAG AA threshold (4.5:1 for normal text, 3:1 for large text) from the start.
+- **Keyboard navigation:** All interactive elements (buttons, form fields, links) must be reachable/usable with the keyboard alone — not requiring a mouse is a requirement that matters especially in the admin panel (staff use it daily).
+- **Semantic HTML:** Frontend components (React) use meaningful HTML tags (a `<div>` with `onClick` is not written instead of a `<button>`) — the basic prerequisite for screen reader support, requiring no extra effort.
+- **Form labels:** Every form field has a `<label>`; placeholder text alone is not considered enough.
 
-## Otomatik denetim
+## Automated checking
 
-- Frontend CI'ına bir erişilebilirlik linter'ı eklenir (öneri: `eslint-plugin-jsx-a11y`) — [static-analysis.md](static-analysis.md)'deki statik analiz katmanının bir uzantısı, ayrı bir araç zinciri gerekmez.
-- Bu, [code-review-checklist.md](../workflow/code-review-checklist.md)'nin 2. kategorisine (tutarlılık) bir madde olarak eklenir.
+- An accessibility linter is added to the frontend CI (suggestion: `eslint-plugin-jsx-a11y`) — an extension of the static analysis layer in [static-analysis.md](static-analysis.md), no separate toolchain needed.
+- This is added as an item to category 2 (consistency) of [code-review-checklist.md](../workflow/code-review-checklist.md).
 
-## Kimin için özellikle önemli
+## Who it matters for in particular
 
-- **`tenant_staff`** (fitness resepsiyonu, berber personeli) — günlük, hızlı kullanım, çoğu zaman ellerinin dolu olduğu anlarda (bkz. [modules/fitness.md](../modules/fitness.md) check-in senaryosu) — klavye/hızlı etkileşim burada bir "güzel olsa iyi olur" değil, gerçek kullanılabilirlik meselesi.
+- **`tenant_staff`** (fitness reception, barber staff) — daily, fast use, often in moments when their hands are full (see the check-in scenario in [modules/fitness.md](../modules/fitness.md)) — keyboard/fast interaction here is not a "nice to have" but a real usability matter.
 
-## Kapsam dışı (MVP'de yok)
+## Out of scope (not in the MVP)
 
-- Tam WCAG AAA uyumu
-- Gerçek kullanıcı testleri (ekran okuyucu kullanan gerçek kullanıcılarla test) — v1 sonrası, gerçek talep gelirse.
-- Çoklu dil erişilebilirlik testi (bkz. [localization.md](localization.md) — şu an tek dil olduğu için gündemde değil).
+- Full WCAG AAA compliance
+- Real user tests (testing with real users who use screen readers) — after v1, if real demand arises.
+- Multi-language accessibility testing (see [localization.md](localization.md) — not on the agenda now since there is a single language).
 
-## İlgili dosyalar
+## Related files
 
-- [theming.md](theming.md) — renk kontrastı, tenant marka rengi kısıtı
-- [static-analysis.md](static-analysis.md) — otomatik denetim katmanı
+- [theming.md](theming.md) — color contrast, the tenant brand color constraint
+- [static-analysis.md](static-analysis.md) — the automated checking layer

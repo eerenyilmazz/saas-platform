@@ -1,62 +1,62 @@
-# Tenant'a Özel İstekler — Genişletme Noktası (Extension Point)
+# Tenant-Specific Requests — Extension Points
 
 ## Problem
 
-Gerçek bir SaaS'ta kaçınılmaz bir senaryo var: ilk müşterilerden biri "bizim için randevu ekranına özel bir buton/kural eklensin" diyecek. Bir coder agent'a "müşteri X için özel bir akış yaz" dendiğinde, en kestirme (ve en yıkıcı) çözüm iş mantığının içine `if (tenantId.equals("x-uuid")) { ... }` yazmaktır — bu [architecture-constraints.md](architecture-constraints.md)'de artık açıkça yasak, çünkü codebase birkaç ay içinde her tenant için bir dal taşıyan, bakımı imkansız bir spagettiye döner.
+In a real SaaS there is an unavoidable scenario: one of the first customers will say "add a special button/rule for us to the appointment screen". When a coder agent is told "write a special flow for customer X", the shortest (and most destructive) solution is to write `if (tenantId.equals("x-uuid")) { ... }` inside the business logic — this is now explicitly banned in [architecture-constraints.md](architecture-constraints.md), because within a few months the codebase turns into an unmaintainable spaghetti carrying a branch for every tenant.
 
-## Karar: özelleştirme her zaman config'ten geçer, koddan değil
+## Decision: customization always goes through config, not code
 
-Tenant'a özel davranış **üç seviyeli** bir mekanizmadan geçer, hiçbiri iş mantığına doğrudan `if (tenantId == ...)` yazmaz:
+Tenant-specific behavior goes through a **three-level** mechanism, and none of them writes `if (tenantId == ...)` directly into business logic:
 
-### Seviye 1 — Feature flag (zaten var)
+### Level 1 — Feature flag (already exists)
 
-En yaygın durum: "bu özellik bazı tenant'larda açık, bazılarında kapalı." Bu zaten [tenant-model.md](tenant-model.md)'deki `@RequiresModule`/`@RequiresFeature` ile çözülüyor — yeni bir mekanizma gerekmez.
+The most common case: "this feature is on for some tenants and off for others." This is already solved with `@RequiresModule`/`@RequiresFeature` in [tenant-model.md](tenant-model.md) — no new mechanism is needed.
 
-### Seviye 2 — Konfigürasyon parametresi
+### Level 2 — Configuration parameter
 
-Davranış aynı ama **parametreleri** tenant'a göre değişiyorsa (örn. "randevu hatırlatması 24 saat önce değil, bu tenant için 48 saat önce gitsin"), bu [tenant-model.md](tenant-model.md)'deki `settings` JSON'una bir parametre olarak eklenir:
+If the behavior is the same but its **parameters** vary by tenant (e.g. "the appointment reminder should go out 48 hours before for this tenant, not 24"), it is added as a parameter to the `settings` JSON in [tenant-model.md](tenant-model.md):
 
 ```json
-"fitness": { "enabled": true, "hatirlatma_saat_once": 48 }
+"fitness": { "enabled": true, "reminder_hours_before": 48 }
 ```
 
-Kod, bu parametreyi okur (`tenant.getSetting("hatirlatma_saat_once", defaultValue: 24)`), hiçbir `if (tenantId)` yazılmaz.
+The code reads this parameter (`tenant.getSetting("reminder_hours_before", defaultValue: 24)`), and no `if (tenantId)` is written.
 
-### Seviye 3 — Extension point (interface)
+### Level 3 — Extension point (interface)
 
-Davranışın **kendisi** (parametre değil, mantığın şekli) tenant'a göre farklıysa (örn. "bu tenant için üyelik yenileme onayı iki adımlı olsun"), bu bir **strateji arayüzü** ile çözülür:
+If the **behavior itself** (not a parameter, but the shape of the logic) differs by tenant (e.g. "for this tenant, membership renewal approval should be two-step"), this is solved with a **strategy interface**:
 
 ```java
 interface MembershipRenewalStrategy {
     RenewalResult renew(Membership membership);
 }
 
-// core, varsayılan implementasyonu sağlar
+// core provides the default implementation
 class DefaultRenewalStrategy implements MembershipRenewalStrategy { ... }
 
-// tenant'a özel davranış gerekiyorsa, ayrı bir implementasyon eklenir
-// hangi implementasyonun kullanılacağı tenant.settings'ten okunur, kodda hardcode edilmez
+// if tenant-specific behavior is needed, a separate implementation is added
+// which implementation is used is read from tenant.settings, not hardcoded in code
 ```
 
-- Bu implementasyonlar `core` içinde, iş mantığından **ayrı bir paket**te (`com.saas.core.membership.strategy`) yaşar — asıl `MembershipService` hangi strateji olduğunu bilmez, sadece arayüzü çağırır.
-- Yeni bir strateji eklemek [new-module-checklist.md](../workflow/new-module-checklist.md) gibi bir süreçle, ayrı bir issue/PR olarak yapılır — asla mevcut `Service` sınıfının içine gömülmez.
+- These implementations live in `core` in a **separate package** from the business logic (`com.saas.core.membership.strategy`) — the actual `MembershipService` does not know which strategy it is, it only calls the interface.
+- Adding a new strategy is done as a separate issue/PR with a process like [new-module-checklist.md](../workflow/new-module-checklist.md) — it is never embedded inside an existing `Service` class.
 
-## Ne zaman hangi seviye
+## Which level when
 
-| Durum | Seviye |
+| Situation | Level |
 |---|---|
-| Bazı tenant'larda açık/kapalı | 1 — feature flag |
-| Aynı davranış, farklı sayı/eşik | 2 — config parametresi |
-| Davranışın akışı/adımları farklı | 3 — extension point (nadir, dikkatli kullanılır) |
+| On/off for some tenants | 1 — feature flag |
+| Same behavior, different number/threshold | 2 — config parameter |
+| The flow/steps of the behavior differ | 3 — extension point (rare, used carefully) |
 
-Seviye 3 **istisnadır**, kural değil — her tenant isteği otomatik olarak bir strateji arayüzü doğurmaz; önce 1 ve 2 zorlanır, 3'e sadece gerçekten mantığın şekli değişiyorsa geçilir (bu karar [decision-tree.md](decision-tree.md)'ye benzer şekilde bilinçli verilir, agent'ın kendi kendine seçmesine bırakılmaz — belirsizse [ADR](../adr/_template.md) konusu olur).
+Level 3 is **the exception, not the rule** — not every tenant request automatically gives rise to a strategy interface; 1 and 2 are pushed first, and 3 is moved to only if the shape of the logic really changes (this decision is made deliberately, similar to [decision-tree.md](decision-tree.md), and not left to the agent to choose on its own — if unclear, it becomes an [ADR](../adr/_template.md) topic).
 
-## MVP'de kapsam
+## Scope in the MVP
 
-Seviye 3 (extension point) mekanizması Faz 0-1'de **kod olarak kurulmaz** — sadece bu doküman, ihtiyaç doğduğunda hangi deseni izleyeceğimizi tarif eder. İlk gerçek tenant'a özel istek geldiğinde bu desen uygulanır, önceden spekülatif olarak inşa edilmez (erken soyutlama riski, bkz. [modules/_template.md](../modules/_template.md)).
+The Level 3 (extension point) mechanism is **not built as code** in Phases 0-1 — this document only describes which pattern we will follow when a need arises. When the first real tenant-specific request comes, this pattern is applied; it is not built speculatively in advance (early abstraction risk, see [modules/_template.md](../modules/_template.md)).
 
-## İlgili dosyalar
+## Related files
 
-- [architecture-constraints.md](architecture-constraints.md) — `if (tenantId == ...)` yasağı
-- [tenant-model.md](tenant-model.md) — Seviye 1 ve 2'nin dayandığı `settings` mekanizması
+- [architecture-constraints.md](architecture-constraints.md) — the `if (tenantId == ...)` ban
+- [tenant-model.md](tenant-model.md) — the `settings` mechanism that Levels 1 and 2 rely on
 - [decision-tree.md](decision-tree.md)

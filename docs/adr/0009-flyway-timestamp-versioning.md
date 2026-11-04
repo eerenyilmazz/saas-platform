@@ -1,24 +1,24 @@
-# ADR 0009: Flyway migration'ları sıralı numara değil, zaman damgası ile versiyonlanır
+# ADR 0009: Flyway migrations are versioned by timestamp, not sequential number
 
-**Durum:** Kabul edildi
-**Tarih:** 2026-07-17
+**Status:** Accepted
+**Date:** 2026-07-17
 
-## Bağlam
+## Context
 
-[database-conventions.md](../platform/database-conventions.md) başlangıçta klasik Flyway kuralını (`V1`, `V2`, `V3`... sıralı numara) benimsemişti. Bu, tek bir geliştiricinin sırayla çalıştığı bir ortamda sorunsuzdur — ama bu platform [agent-pipeline.md](../workflow/agent-pipeline.md) gereği **paralel çalışan birden fazla coder agent** ile geliştiriliyor. İki agent, farklı branch'lerde aynı anda (biri berber modülü, diğeri fitness modülü için) migration yazarsa, ikisi de kendi branch'inde "bir sonraki boş numara"yı görür ve aynı numarayı (örn. ikisi de `V7`) kullanır.
+[database-conventions.md](../platform/database-conventions.md) initially adopted the classic Flyway convention (`V1`, `V2`, `V3`... sequential numbers). This is fine in an environment where a single developer works sequentially — but this platform is developed, per [agent-pipeline.md](../workflow/agent-pipeline.md), with **multiple coder agents working in parallel**. If two agents write migrations at the same time on different branches (one for the barber module, the other for the fitness module), both see "the next free number" on their own branch and use the same number (e.g. both use `V7`).
 
-## Karar
+## Decision
 
-Migration dosya adları sıralı numara yerine **zaman damgası** (`V<yyyyAAggSSDD>__<açıklama>.sql`, dakika hassasiyetinde) kullanır.
+Migration file names use a **timestamp** instead of a sequential number (`V<yyyyMMddHHmm>__<description>.sql`, minute precision).
 
-## Sonuç
+## Consequences
 
-- İki agent aynı anda migration yazsa bile, farklı zaman damgaları alacakları neredeyse kesindir — versiyon numarası çakışması yapısal olarak ortadan kalkar.
-- Flyway bu deseni (community edition dahil) doğrudan destekler, ek bir araç gerekmez.
-- Dezavantaj: dosya adları `V1`, `V2` kadar okunaklı değil — ama migration'ların **sırası** zaten dosya içeriğinden/git geçmişinden takip edilir, dosya adının "okunaklı sayı" olması bir gereklilik değil.
+- Even if two agents write migrations at the same time, they will almost certainly get different timestamps — version number collisions are structurally eliminated.
+- Flyway supports this pattern directly (including the community edition); no extra tooling is needed.
+- Downside: file names are not as readable as `V1`, `V2` — but the **order** of migrations is tracked from the file contents/git history anyway, and the file name being a "readable number" is not a requirement.
 
-## Geçmiş bağlam
+## Historical context
 
-- **Orijinal olay/bulgu:** Bu karar, henüz hiçbir migration yazılmadan, ikinci bir dış mimari incelemesinde (Gemini) ortaya çıktı — inceleme, agent-pipeline'ın **paralel** çalışma modelini (aynı anda birden fazla coder agent, farklı branch'lerde) dikkate aldığında sıralı Flyway numaralandırmasının yapısal olarak kırılgan olduğunu gösterdi. Önceki tasarım bunu hiç düşünmemişti çünkü klasik Flyway dokümantasyonu tek geliştiricili senaryoyu varsayar.
-- **Reddedilen alternatifler:** Merkezi bir "sıra numarası rezervasyon" servisi (bir agent migration yazmadan önce bir sonraki numarayı merkezi bir yerden alır) — bu, ekstra bir altyapı bileşeni ve tek hata noktası (single point of failure) getirdiği için reddedildi, zaman damgası aynı sonucu sıfır ek altyapıyla veriyor.
-- **Başarısızlık senaryosu:** İki agent aynı `V7` numarasını kullanan migration'larla ayrı ayrı PR açıp merge ederse, Flyway CI'da checksum/versiyon çakışması hatasıyla durur — bu, [pr-and-definition-of-done.md](../workflow/pr-and-definition-of-done.md)'daki "Max Iteration = 3" döngüsünü migration numarası kaydırma konusunda anlamsızca tüketebilirdi (agent'lar sıralama çatışmalarını çözmekte zayıftır).
+- **Original incident/finding:** This decision came out of a second external architecture review (Gemini), before any migration had been written — the review showed that sequential Flyway numbering is structurally fragile once the **parallel** working model of the agent pipeline (multiple coder agents at the same time, on different branches) is taken into account. The earlier design had not considered this because the classic Flyway documentation assumes a single-developer scenario.
+- **Rejected alternatives:** A central "sequence number reservation" service (an agent obtains the next number from a central place before writing a migration) — rejected because it introduces an extra infrastructure component and a single point of failure; a timestamp gives the same result with zero additional infrastructure.
+- **Failure scenario:** If two agents opened separate PRs with migrations using the same `V7` number and merged them, Flyway would stop in CI with a checksum/version conflict — this could pointlessly burn through the "Max Iteration = 3" loop in [pr-and-definition-of-done.md](../workflow/pr-and-definition-of-done.md) on renumbering (agents are weak at resolving ordering conflicts).
