@@ -72,6 +72,35 @@ All endpoints are versioned under `/api/v1`. When the API is running, the OpenAP
 | `POST` | `/api/v1/fitness/checkins` | Validate a QR token and record an entry |
 | `GET` | `/actuator/health` | Health check (includes DB connectivity) |
 
+### Example requests
+
+The local database has no seed users yet, so replace the placeholders with an existing account.
+
+```bash
+# Sign in
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "<password>"}'
+# → {"accessToken": "<jwt>", "refreshToken": "<token>"}
+
+# Exchange the refresh token for new tokens
+curl -X POST http://localhost:8080/api/v1/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken": "<token>"}'
+
+# Issue a short-lived QR token for a member (fitness module)
+curl http://localhost:8080/api/v1/fitness/members/<memberId>/qr-token \
+  -H "Authorization: Bearer <accessToken>"
+# → {"token": "<qr-token>"}
+
+# Validate the QR token and record the entry
+curl -X POST http://localhost:8080/api/v1/fitness/checkins \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d '{"token": "<qr-token>"}'
+# → {"memberId": "<uuid>", "checkedInAt": "2026-07-17T09:30:00Z"}
+```
+
 ## Tech Stack
 
 | Layer | Choice |
