@@ -149,3 +149,9 @@ cd apps/api
 | [docs/workflow/agent-pipeline.md](docs/workflow/agent-pipeline.md) | Plan → code → review → test workflow |
 
 > Most of the documentation is written in Turkish; code identifiers are in English.
+
+---
+
+## License
+
+Copyright (c) 2026 Eren Yılmaz. All rights reserved. The source is publicly visible for evaluation only; see [`LICENSE`](LICENSE). To request permission to use any part of it, contact eerenyilmazz1@gmail.com.
